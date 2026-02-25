@@ -1820,30 +1820,127 @@ function loadNotionSettings(){
     }
   }
 }
+// ── Upload a base64 image to Notion via File Upload API ──
+async function uploadImageToNotion(base64,filename,token){
+  // 1. base64 → Blob
+  const arr=base64.split(',');
+  const mime=arr[0].match(/:(.*?);/)[1];
+  const bstr=atob(arr[1]);
+  const u8=new Uint8Array(bstr.length);
+  for(let i=0;i<bstr.length;i++)u8[i]=bstr.charCodeAt(i);
+  const blob=new Blob([u8],{type:mime});
+
+  // 2. Create upload session
+  const{ok:sok,data:sdata}=await notionFetch('POST','/file-uploads',{filename,content_type:mime},token);
+  if(!sok)return null;
+  const uploadUrl=sdata.upload_url;
+  const fileId=sdata.id;
+  if(!uploadUrl||!fileId)return null;
+
+  // 3. PUT binary to presigned URL (direct, no CORS proxy needed — it's S3)
+  try{
+    const fr=await fetch(uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:blob});
+    if(!fr.ok)return null;
+  }catch(e){return null;}
+
+  return fileId; // use as {type:'file_upload',file_upload:{id:fileId}}
+}
+
+// ── Build Notion page properties for a trade ──
+function buildTradeProps(t,tDbId){
+  const props={
+    'Trade Name':{title:[{text:{content:t.asset+' '+t.dir+' — '+t.date}}]},
+    'Date':{date:{start:t.date}},
+    'Asset':{select:{name:t.asset}},
+    'Direction':{select:{name:t.dir}},
+    'Risk %':{number:t.risk||0},
+    'R Multiple':{number:t.r||0},
+    'Status':{select:{name:t.status}},
+    'Entry Reason':{rich_text:[{text:{content:t.reason||''}}]},
+  };
+  if(t.pnl!=null)props['PnL (R)']={number:t.pnl};
+  if(t.entry)props['Entry Price']={number:t.entry};
+  if(t.exit)props['Exit Price']={number:t.exit};
+  return{parent:{database_id:tDbId},properties:props};
+}
+
+// ── Append chart image blocks to a Notion page ──
+async function appendChartBlocks(pageId,charts,token){
+  if(!charts||!Object.keys(charts).length)return;
+  const TF_ORDER=['Monthly','Weekly','Daily','H4','H1','M15'];
+  const blocks=[];
+
+  // Heading
+  blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
+
+  for(const tf of TF_ORDER){
+    const src=charts[tf];
+    if(!src)continue;
+
+    // Try to upload to Notion Files API
+    const fileId=await uploadImageToNotion(src,tf.toLowerCase()+'.png',token);
+
+    if(fileId){
+      // Use Notion-hosted file
+      blocks.push({object:'block',type:'image',image:{type:'file_upload',file_upload:{id:fileId}}});
+    } else {
+      // Fallback: embed as external URL via data URI won't work in Notion
+      // Instead add a caption block noting the image couldn't upload
+      blocks.push({object:'block',type:'callout',callout:{
+        icon:{type:'emoji',emoji:'⚠️'},
+        rich_text:[{text:{content:tf+' 圖表上傳失敗（圖檔可能太大）'}}],
+        color:'yellow_background'
+      }});
+    }
+
+    // TF label caption
+    blocks.push({object:'block',type:'paragraph',paragraph:{
+      rich_text:[{text:{content:tf},annotations:{bold:true,color:'blue'}}]
+    }});
+  }
+
+  if(!blocks.length)return;
+  await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks},token);
+}
+
 async function pushTradeNotion(){
-  const token=document.getElementById('notionToken').value.trim();
+  const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   let t;if(currentTradeId)t=trades.find(x=>x.id===currentTradeId);
   if(!t){toast('請先儲存交易','e');return;}
   const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
-    const body={parent:{database_id:tDbId},properties:{'Trade Name':{title:[{text:{content:t.asset+' '+t.dir+' — '+t.date}}]},'Date':{date:{start:t.date}},'Asset':{select:{name:t.asset}},'Direction':{select:{name:t.dir}},'Risk %':{number:t.risk||0},'R Multiple':{number:t.r||0},'Status':{select:{name:t.status}},'Entry Reason':{rich_text:[{text:{content:t.reason||''}}]}}};
-  if(t.pnl!=null)body.properties['PnL (R)']={number:t.pnl};
-  if(await notionPush('https://api.notion.com/v1/pages',body,token))toast('✓ 交易已推送 Notion');
+
+  toast('⏳ 推送中...');
+  const{ok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
+  if(!ok){toast('⚠ Notion: '+(data.message||'失敗'),'e');return;}
+
+  const pageId=data.id;
+  const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
+  if(chartCount>0){
+    toast('⏳ 上傳圖表中 ('+chartCount+'張)...');
+    await appendChartBlocks(pageId,t.charts,token);
+  }
+  toast('✓ 推送完成'+(chartCount>0?' (含'+chartCount+'張圖)':''));
 }
+
 async function pushAllTrades(){
-  const token=document.getElementById('notionToken').value.trim();
+  const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   if(!trades.length){toast('無交易記錄','e');return;}
-  toast('⏳ 推送中...');
-  let ok=0;
-  for(const t of trades){
+  let ok=0;const total=trades.length;
+  for(let i=0;i<trades.length;i++){
+    const t=trades[i];
+    toast('⏳ 推送 '+(i+1)+'/'+total+' — '+t.asset);
     const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
-    const body={parent:{database_id:tDbId},properties:{'Trade Name':{title:[{text:{content:t.asset+' '+t.dir+' — '+t.date}}]},'Date':{date:{start:t.date}},'Asset':{select:{name:t.asset}},'Direction':{select:{name:t.dir}},'Risk %':{number:t.risk||0},'Status':{select:{name:t.status}}}};
-    if(t.pnl!=null)body.properties['PnL (R)']={number:t.pnl};
-    if(await notionPush('https://api.notion.com/v1/pages',body,token))ok++;
-    await new Promise(r=>setTimeout(r,350));
+    const{ok:pok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
+    if(pok){
+      ok++;
+      const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
+      if(chartCount>0)await appendChartBlocks(data.id,t.charts,token);
+    }
+    await new Promise(r=>setTimeout(r,500));
   }
-  toast('✓ 完成 '+ok+'/'+trades.length+' 筆');
+  toast('✓ 完成 '+ok+'/'+total+' 筆（含圖表）');
 }
 
 // ════════════════════════════════════
