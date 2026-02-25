@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FICC PRO v3</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap');
+:root{
+  --bg:#06080d;--bg1:#0b0f18;--bg2:#0f1520;--bg3:#162030;
+  --border:#1c2d46;--border2:#243858;
+  --amber:#f5a623;--amberD:rgba(245,166,35,.13);
+  --green:#00d67e;--greenD:rgba(0,214,126,.11);
+  --red:#ff4757;--redD:rgba(255,71,87,.11);
+  --blue:#3b9eff;--blueD:rgba(59,158,255,.11);
+  --cyan:#00e5cc;--cyanD:rgba(0,229,204,.11);
+  --pur:#b48bfa;--purD:rgba(180,139,250,.11);
+  --hi:#d0e8ff;--mid:#7a9ec0;--lo:#2c4060;
+  --mono:'Share Tech Mono',monospace;
+  --sans:'Barlow',sans-serif;
+  --cond:'Barlow Condensed',sans-serif;
+  --r:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--mid);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:44px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:300;backdrop-filter:blur(8px)}
+.logo{font-family:var(--mono);font-size:14px;color:var(--amber);letter-spacing:.12em}
+.logo sub{color:var(--lo);font-size:9px;vertical-align:middle;margin-left:4px}
+.tb-center{display:flex;gap:18px;font-family:var(--mono);font-size:9px;color:var(--lo)}
+.tk{display:flex;gap:5px;align-items:center}
+.tk-v{color:var(--hi)}.tk-u{color:var(--green)}.tk-d{color:var(--red)}
+.tb-right{display:flex;align-items:center;gap:8px}
+#clock{font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:.04em}
+.sess{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:2px;border:1px solid}
+.sess.asia{color:#f5c842;border-color:rgba(245,200,66,.3);background:rgba(245,200,66,.07)}
+.sess.lon{color:var(--cyan);border-color:rgba(0,229,204,.3);background:var(--cyanD)}
+.sess.ny{color:var(--green);border-color:rgba(0,214,126,.3);background:var(--greenD)}
+.sess.off{color:var(--lo);border-color:var(--border)}
+
+/* ── NAV ── */
+.nav{display:flex;gap:0;padding:0 22px;background:var(--bg1);border-bottom:2px solid var(--border);overflow-x:auto}
+.ntab{display:flex;align-items:center;gap:6px;padding:10px 18px;font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--lo);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .15s}
+.ntab:hover{color:var(--mid)}.ntab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.ntab .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* ── PAGES ── */
+.page{display:none;padding:18px 22px 80px;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── LAYOUT ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media(max-width:900px){.g3,.g4,.g5{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.g2,.g3,.g4,.g5{grid-template-columns:1fr}}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}.mb20{margin-bottom:20px}
+
+/* ── CARD ── */
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.sec{display:flex;align-items:center;gap:8px;margin-bottom:13px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.sec h2{font-family:var(--cond);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--hi)}
+.acc{width:3px;height:14px;border-radius:2px;flex-shrink:0}
+.sbadge{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:2px;border:1px solid var(--border2);color:var(--lo);margin-left:auto;letter-spacing:.04em}
+
+/* ── INPUTS ── */
+select,input[type=text],input[type=number],input[type=date],input[type=password],textarea{
+  background:var(--bg2);border:1px solid var(--border2);color:var(--hi);
+  font-family:var(--mono);font-size:11px;padding:5px 9px;
+  border-radius:var(--r);outline:none;transition:border-color .15s
+}
+select:focus,input:focus,textarea:focus{border-color:var(--amber)}
+select option{background:var(--bg2)}
+.fl{font-family:var(--mono);font-size:9px;color:var(--lo);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:3px}
+.fg{display:flex;flex-direction:column;gap:3px}
+
+/* ── BUTTONS ── */
+.btn{padding:7px 15px;border-radius:var(--r);border:1px solid;font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-a{background:var(--amber);border-color:var(--amber);color:#000}.btn-a:hover{background:#f0b030}
+.btn-g{background:transparent;border-color:var(--border2);color:var(--lo)}.btn-g:hover{border-color:var(--mid);color:var(--mid)}
+.btn-sm{padding:4px 10px;font-size:9px}
+.btn-danger{background:transparent;border-color:rgba(255,71,87,.3);color:var(--red)}.btn-danger:hover{background:var(--redD)}
+.btn-gemini{background:linear-gradient(135deg,rgba(66,133,244,.2),rgba(15,157,88,.2));border-color:rgba(66,133,244,.4);color:#8bc4fb}
+.btn-gemini:hover{background:linear-gradient(135deg,rgba(66,133,244,.3),rgba(15,157,88,.3))}
+
+/* ── CHECKLIST ── */
+.cl-item{display:flex;align-items:flex-start;gap:9px;padding:6px 9px;border-radius:var(--r);margin-bottom:2px;cursor:pointer;border:1px solid transparent;transition:background .1s}
+.cl-item:hover{background:var(--bg2);border-color:var(--border)}
+.cl-item.ck{opacity:.45}.cl-item.ck .cl-txt strong{text-decoration:line-through;color:var(--lo)}
+.cl-cb{width:13px;height:13px;border:1px solid var(--border2);border-radius:2px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:8px}
+.cl-item.ck .cl-cb{background:var(--green);border-color:var(--green);color:#000}
+.cl-txt{flex:1}.cl-txt strong{display:block;font-size:12px;font-weight:500;color:var(--mid);margin-bottom:1px}
+.cl-txt span{font-size:10px;color:var(--lo);font-family:var(--mono)}
+.cl-tag{font-family:var(--mono);font-size:8px;padding:1px 6px;border-radius:2px;border:1px solid;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.cl-tag.bond{color:var(--blue);border-color:rgba(59,158,255,.3);background:var(--blueD)}
+.cl-tag.fx{color:var(--cyan);border-color:rgba(0,229,204,.3);background:var(--cyanD)}
+.cl-tag.gold{color:var(--amber);border-color:rgba(245,166,35,.3);background:var(--amberD)}
+.cl-tag.oil{color:var(--red);border-color:rgba(255,71,87,.3);background:var(--redD)}
+.cl-tag.btc{color:var(--pur);border-color:rgba(180,139,250,.3);background:var(--purD)}
+.cl-tag.all{color:var(--lo);border-color:var(--border2)}
+.cl-tag.warn{color:var(--red);border-color:rgba(255,71,87,.3);background:var(--redD)}
+.cl-sec-t{font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--lo);padding:4px 0 6px;border-bottom:1px solid var(--border);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.prog-wrap{margin-bottom:12px}
+.prog-lbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--lo);margin-bottom:4px}
+.prog-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+
+/* ── GANTT ── */
+.gantt-wrap{overflow-x:auto}
+.gantt-table{min-width:860px;width:100%;border-collapse:collapse}
+.gantt-table th,.gantt-table td{border:1px solid var(--border);padding:0;vertical-align:top}
+.gantt-table thead th{background:var(--bg2);font-family:var(--mono);font-size:10px;color:var(--lo);text-align:center;padding:8px 6px;letter-spacing:.05em;font-weight:400}
+.gantt-table thead th.gc{text-align:left;padding-left:12px;width:140px}
+.gantt-table thead th.gd{color:var(--hi);font-weight:600}
+.gac{background:var(--bg2);padding:9px 11px;min-width:140px}
+.gan{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.05em;display:block;margin-bottom:2px}
+.gas{font-family:var(--mono);font-size:8.5px;color:var(--lo);display:block}
+.gcell{background:var(--bg1);padding:5px 4px;text-align:center;min-height:48px}
+
+/* ── GTASK ── */
+.gtask{display:inline-flex;flex-direction:column;padding:4px 7px;border-radius:2px;font-family:var(--mono);margin:2px;text-align:left;min-width:70px;cursor:pointer;position:relative;transition:opacity .15s}
+.gtask:hover{opacity:.8}
+.gtask b{font-weight:600;font-size:8.5px;letter-spacing:.02em}
+.gtask s{font-weight:300;opacity:.7;font-size:7.5px;text-decoration:none}
+.gtask.bond{background:var(--blueD);color:var(--blue);border:1px solid rgba(59,158,255,.2)}
+.gtask.fx{background:var(--cyanD);color:var(--cyan);border:1px solid rgba(0,229,204,.2)}
+.gtask.gold{background:var(--amberD);color:var(--amber);border:1px solid rgba(245,166,35,.2)}
+.gtask.oil{background:var(--redD);color:var(--red);border:1px solid rgba(255,71,87,.2)}
+.gtask.btc{background:var(--purD);color:var(--pur);border:1px solid rgba(180,139,250,.2)}
+.gtask.rev{background:rgba(22,32,48,.7);color:var(--lo);border:1px solid var(--border)}
+.gtask.warn{background:var(--redD);color:var(--red);border:1px solid rgba(255,71,87,.2)}
+.gtask.ok{background:var(--greenD);color:var(--green);border:1px solid rgba(0,214,126,.2)}
+.gtask.editing{outline:2px solid var(--amber);z-index:10}
+.add-task-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:2px;border:1px dashed var(--border2);background:transparent;color:var(--lo);font-size:12px;cursor:pointer;margin:2px;transition:all .15s;font-family:var(--mono);line-height:1}
+.add-task-btn:hover{border-color:var(--amber);color:var(--amber)}
+
+/* ── EDIT POPOVER ── */
+.edit-popover{position:fixed;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:12px;z-index:400;box-shadow:0 8px 32px rgba(0,0,0,.6);min-width:220px}
+.edit-popover input[type=text]{width:100%;margin-bottom:6px;font-size:11px}
+.edit-popover select{width:100%;margin-bottom:8px}
+.ep-row{display:flex;gap:6px}
+
+/* ── TRADE TABLE ── */
+.ttable{width:100%;border-collapse:collapse;font-size:11px}
+.ttable th{background:var(--bg2);border:1px solid var(--border);padding:7px 10px;font-family:var(--mono);font-size:9px;color:var(--lo);text-align:left;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.ttable td{border:1px solid var(--border);padding:6px 10px;font-family:var(--mono);color:var(--mid);vertical-align:middle}
+.ttable tbody tr:hover td{background:var(--bg2);cursor:pointer}
+.dir-l{color:var(--green);font-weight:600}.dir-s{color:var(--red);font-weight:600}
+.pnl-p{color:var(--green)}.pnl-n{color:var(--red)}
+.t-empty{text-align:center;padding:40px;color:var(--lo);font-family:var(--mono);font-size:11px}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:5px;width:100%;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-head h3{font-family:var(--cond);font-size:14px;font-weight:700;color:var(--hi)}
+.modal-close{font-size:18px;color:var(--lo);cursor:pointer;padding:0 4px}.modal-close:hover{color:var(--red)}
+.modal-body{overflow-y:auto;flex:1;padding:16px 18px}
+.ctabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.ctab{padding:6px 12px;font-family:var(--mono);font-size:10px;color:var(--lo);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;white-space:nowrap}
+.ctab.active{color:var(--amber);border-bottom-color:var(--amber)}.ctab:hover:not(.active){color:var(--mid)}
+.cpanel{display:none}.cpanel.active{display:block}
+.upload-area{border:2px dashed var(--border2);border-radius:var(--r);padding:30px;text-align:center;cursor:pointer;transition:border-color .15s;position:relative;margin-bottom:8px}
+.upload-area:hover,.upload-area.drag{border-color:var(--amber)}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-area p{font-family:var(--mono);font-size:11px;color:var(--lo)}
+.upload-area p span{color:var(--amber)}
+.chart-img{max-width:100%;border-radius:var(--r);border:1px solid var(--border);display:block;margin-bottom:6px}
+
+/* ── AI COACH ── */
+.coach-sidebar{width:260px;flex-shrink:0;border-right:1px solid var(--border);padding:14px;overflow-y:auto;background:var(--bg1)}
+.coach-main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.coach-layout{display:flex;height:calc(100vh - 220px);min-height:500px}
+.coach-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.coach-input-area{padding:14px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;background:var(--bg2)}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.user{flex-direction:row-reverse}
+.msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--mono);font-weight:700}
+.msg.user .msg-avatar{background:var(--amberD);color:var(--amber);border:1px solid rgba(245,166,35,.3)}
+.msg.ai .msg-avatar{background:linear-gradient(135deg,rgba(66,133,244,.3),rgba(15,157,88,.3));color:#8bc4fb;border:1px solid rgba(66,133,244,.3)}
+.msg-bubble{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:10px 13px;font-size:12px;line-height:1.7;color:var(--hi);max-width:85%;font-family:var(--sans)}
+.msg.user .msg-bubble{background:var(--amberD);border-color:rgba(245,166,35,.2);color:var(--hi)}
+.msg-bubble b{color:var(--amber);font-weight:600}
+.msg-bubble .tag{display:inline-block;font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:2px;background:var(--bg3);border:1px solid var(--border2);color:var(--mid);margin:1px}
+.msg-bubble h4{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin:8px 0 4px}
+.msg-bubble ul{padding-left:16px;margin:4px 0}
+.msg-bubble li{margin-bottom:3px}
+.msg-bubble .score{font-family:var(--mono);font-size:22px;font-weight:400;color:var(--green)}
+.coach-quick-btns{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.qbtn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-family:var(--mono);font-size:10px;color:var(--lo);cursor:pointer;text-align:left;transition:all .15s;line-height:1.5}
+.qbtn:hover{border-color:var(--amber);color:var(--amber)}
+.typing-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mid);animation:pulse .8s infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* ── NEWS ── */
+.news-event{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px;transition:border-color .1s}
+.news-event:hover{border-color:var(--border2)}
+.news-time{font-family:var(--mono);font-size:10px;color:var(--lo);min-width:55px;flex-shrink:0;padding-top:1px}
+.news-impact{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.news-impact.high{background:var(--red)}
+.news-impact.med{background:var(--amber)}
+.news-impact.low{background:var(--green)}
+.news-impact.holiday{background:var(--lo)}
+.news-body{flex:1}
+.news-title{font-size:12px;color:var(--hi);margin-bottom:2px;font-weight:500}
+.news-meta{font-family:var(--mono);font-size:9px;color:var(--lo);display:flex;gap:8px}
+.news-currency{padding:1px 5px;border-radius:2px;border:1px solid var(--border2);background:var(--bg3)}
+.news-actual{color:var(--green);font-weight:600}
+.news-forecast{color:var(--mid)}
+.news-prev{color:var(--lo)}
+.news-day-label{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lo);padding:12px 0 6px;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.news-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:2px;border:1px solid var(--border2);background:transparent;color:var(--lo);cursor:pointer;transition:all .15s}
+.filter-btn.active.red{border-color:rgba(255,71,87,.4);background:var(--redD);color:var(--red)}
+.filter-btn.active.amber{border-color:rgba(245,166,35,.4);background:var(--amberD);color:var(--amber)}
+.filter-btn.active.green{border-color:rgba(0,214,126,.4);background:var(--greenD);color:var(--green)}
+.filter-btn.active.all{border-color:var(--border2);background:var(--bg2);color:var(--mid)}
+.news-loading{text-align:center;padding:40px;font-family:var(--mono);font-size:11px;color:var(--lo)}
+.news-error{padding:14px;background:var(--redD);border:1px solid rgba(255,71,87,.2);border-radius:var(--r);font-family:var(--mono);font-size:11px;color:var(--red);margin-bottom:12px}
+
+/* ── RISK ── */
+.rb-wrap{margin-bottom:9px}
+.rb-lbl{display:flex;justify-content:space-between;margin-bottom:3px;font-family:var(--mono);font-size:10px}
+.rb{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.rb-fill{height:100%;border-radius:2px;transition:width .4s}
+.sbox{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px}
+.sl{font-family:var(--mono);font-size:9px;color:var(--lo);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.sv{font-family:var(--mono);font-size:18px;color:var(--hi)}.sv.sm{font-size:14px}
+.ss{font-family:var(--mono);font-size:10px;color:var(--lo)}
+
+/* ── SETTINGS ── */
+.settings-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px}
+.settings-label{font-family:var(--mono);font-size:10px;color:var(--lo);min-width:180px}
+.settings-row input{flex:1}
+.notion-link{font-family:var(--mono);font-size:10px;color:var(--blue);text-decoration:none}.notion-link:hover{text-decoration:underline}
+
+/* ── INFO ── */
+.info-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;font-size:12px;line-height:1.7;color:var(--mid);margin-bottom:13px}
+.hl{color:var(--amber);font-family:var(--mono);font-size:11px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:22px;right:22px;z-index:999;font-family:var(--mono);font-size:10px;padding:8px 16px;border-radius:var(--r);border:1px solid;transition:opacity .3s;pointer-events:none;opacity:0}
+
+/* ── JTABS (inner) ── */
+.jtabs{display:flex;gap:2px;margin-bottom:14px;border-bottom:1px solid var(--border);overflow-x:auto}
+.jtab{padding:7px 14px;font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--lo);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
+.jtab.active{color:var(--cyan);border-bottom-color:var(--cyan)}.jtab:hover:not(.active){color:var(--mid)}
+.jpanel{display:none}.jpanel.active{display:block}
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 13px;background:var(--bg1);border:1px solid var(--border);border-radius:var(--r)}
+.date-prev-next{font-family:var(--mono);font-size:15px;color:var(--lo);cursor:pointer;padding:0 5px;transition:color .15s}.date-prev-next:hover{color:var(--amber)}
+.jbadge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px}
+.jb-saved{background:var(--greenD);color:var(--green);border:1px solid rgba(0,214,126,.25)}
+.jb-dirty{background:var(--amberD);color:var(--amber);border:1px solid rgba(245,166,35,.25)}
+
+/* RS */
+.rs-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:11px}
+.rs-title{font-family:var(--cond);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lo);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.rs-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;gap:6px}
+.rs-sym{font-family:var(--mono);font-size:10px;color:var(--mid);flex:1}
+.rs-row select{width:100px;font-size:9px;padding:2px 4px}
+
+/* FOMC banner */
+.fomc-bar{display:flex;align-items:center;gap:10px;padding:8px 13px;background:rgba(255,71,87,.07);border:1px solid rgba(255,71,87,.18);border-radius:var(--r);margin-bottom:13px;font-family:var(--mono);font-size:10px}
+.fomc-bar b{color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="logo">FICC<span style="color:var(--lo)">/</span>PRO<sub>v3</sub></div>
+    <div style="width:1px;height:18px;background:var(--border2)"></div>
+    <div class="tb-center">
+      <div class="tk"><span class="tk-v">ZB1!</span><span class="tk-v">117'24</span><span class="tk-u">+0.24%</span></div>
+      <div class="tk"><span class="tk-v">6E1!</span><span class="tk-v">1.1810</span><span class="tk-d">-0.12%</span></div>
+      <div class="tk"><span class="tk-v">GC1!</span><span class="tk-v">2,936</span><span class="tk-u">+0.51%</span></div>
+      <div class="tk"><span class="tk-v">CL1!</span><span class="tk-v">70.28</span><span class="tk-d">-0.43%</span></div>
+      <div class="tk"><span class="tk-v">BTC</span><span class="tk-v">94,210</span><span class="tk-u">+1.82%</span></div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div id="sess" class="sess off">○ OFF</div>
+    <div id="clock">--:--</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="ntab active" onclick="showPage('journal',this)"><span class="dot"></span>Daily Journal</button>
+  <button class="ntab" onclick="showPage('gantt',this)"><span class="dot"></span>Weekly Gantt</button>
+  <button class="ntab" onclick="showPage('tradelog',this)"><span class="dot"></span>Trade Log</button>
+  <button class="ntab" onclick="showPage('coach',this)"><span class="dot" style="background:linear-gradient(to right,#4285f4,#0f9d58)"></span>AI Coach</button>
+  <button class="ntab" onclick="showPage('news',this);loadNews()"><span class="dot" style="background:var(--blue)"></span>News</button>
+  <button class="ntab" onclick="showPage('risk',this)"><span class="dot"></span>Risk</button>
+  <button class="ntab" onclick="showPage('settings',this)"><span class="dot"></span>Settings</button>
+</div>
+
+<!-- ═══════ JOURNAL ═══════ -->
+<div class="page active" id="page-journal">
+  <div class="fomc-bar">⚠ FOMC:&nbsp;<b id="fomcDisp">未設定</b>&nbsp;&nbsp;設定：<input type="date" id="fomcDate" onchange="setFOMC(this.value)" style="width:130px;font-size:10px;padding:3px 7px"><span style="margin-left:auto;font-size:9px;color:var(--lo)">資料自動存入 localStorage</span></div>
+  <div class="date-nav">
+    <span class="date-prev-next" onclick="jDateShift(-1)">‹</span>
+    <input type="date" id="jDate" onchange="loadJournal(this.value)" style="font-size:12px">
+    <span class="date-prev-next" onclick="jDateShift(1)">›</span>
+    <span id="jDayLabel" style="font-family:var(--mono);font-size:11px;color:var(--hi);flex:1"></span>
+    <span id="jBadge" class="jbadge" style="display:none"></span>
+    <button class="btn btn-a btn-sm" onclick="saveJournal()">💾 存檔</button>
+    <button class="btn btn-g btn-sm" onclick="pushJournalNotion()">◩ Notion</button>
+  </div>
+  <div class="jtabs">
+    <button class="jtab active" onclick="showJTab('cl',this)">✅ Checklist</button>
+    <button class="jtab" onclick="showJTab('rs',this)">📈 RS Monitor</button>
+    <button class="jtab" onclick="showJTab('macro',this)">🌐 Macro</button>
+    <button class="jtab" onclick="showJTab('notes',this)">📝 Market Notes</button>
+    <button class="jtab" onclick="showJTab('hist',this)">🗂 History</button>
+  </div>
+
+  <!-- Checklist -->
+  <div class="jpanel active" id="jp-cl">
+    <div class="prog-wrap"><div class="prog-lbl"><span>完成進度</span><span id="clProg">0/0</span></div><div class="prog-bar"><div class="prog-fill" id="clFill" style="width:0%"></div></div></div>
+    <div class="g2" style="align-items:start">
+      <div>
+        <div class="cl-sec-t"><span style="color:var(--amber)">▸</span>01 — Macro</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="m1"><div class="cl-cb"></div><div class="cl-txt"><strong>Macro Regime 確認</strong><span>Risk-On/Off/Inflation/Deflation?</span></div><span class="cl-tag all">MACRO</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="m2"><div class="cl-cb"></div><div class="cl-txt"><strong>Yield Curve 形態</strong><span>2Y10Y 利差走向？陡化/平化/倒掛？</span></div><span class="cl-tag all">YIELD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="m3"><div class="cl-cb"></div><div class="cl-txt"><strong>FOMC 日期確認</strong><span>本週有FOMC？Bond/FX/Gold禁止新倉</span></div><span class="cl-tag warn">FOMC</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="m4"><div class="cl-cb"></div><div class="cl-txt"><strong>本週重大數據</strong><span>CPI/PPI/NFP/PCE/GDP 時間確認</span></div><span class="cl-tag all">ECON</span></div>
+        <div class="cl-sec-t" style="margin-top:10px"><span style="color:var(--blue)">▸</span>02 — Bond</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="b1"><div class="cl-cb"></div><div class="cl-txt"><strong>6am — M/W SMT 確認</strong><span>月線/週線SMT？DXY相關性</span></div><span class="cl-tag bond">BOND</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="b2"><div class="cl-cb"></div><div class="cl-txt"><strong>前週五 SMT 結果</strong><span>有SMT→週一Entry；無→等週二</span></div><span class="cl-tag bond">BOND</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="b3"><div class="cl-cb"></div><div class="cl-txt"><strong>Entry 窗口 7/8/9am</strong><span>本月交易次數 ≤ 2 筆確認</span></div><span class="cl-tag bond">BOND</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="b4"><div class="cl-cb"></div><div class="cl-txt"><strong>月合約換倉確認</strong><span>ZF1!/ZB1! Roll Date</span></div><span class="cl-tag bond">BOND</span></div>
+        <div class="cl-sec-t" style="margin-top:10px"><span style="color:var(--cyan)">▸</span>03 — FX</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="f1"><div class="cl-cb"></div><div class="cl-txt"><strong>12am — M/W SMT (DXY/CHF/GBP)</strong><span>三者方向同步確認</span></div><span class="cl-tag fx">FX</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="f2"><div class="cl-cb"></div><div class="cl-txt"><strong>Bond 已先走出方向</strong><span>Bond → FX 交易順序</span></div><span class="cl-tag fx">FX</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="f3"><div class="cl-cb"></div><div class="cl-txt"><strong>LN Session 3/4/5am</strong><span>僅限週三、四、五</span></div><span class="cl-tag fx">FX</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="f4"><div class="cl-cb"></div><div class="cl-txt"><strong>NY Session 8/9/10am</strong><span>RS：Term→DXY→EUR/JPY/AUD</span></div><span class="cl-tag fx">FX</span></div>
+      </div>
+      <div>
+        <div class="cl-sec-t"><span style="color:var(--amber)">▸</span>04 — Gold</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="g1"><div class="cl-cb"></div><div class="cl-txt"><strong>12am — Daily/H4 SMT</strong><span>GC1! vs SIL1! divergence</span></div><span class="cl-tag gold">GOLD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="g2"><div class="cl-cb"></div><div class="cl-txt"><strong>短端利率方向 2Y Yield</strong><span>2Y↓→Gold偏多；2Y↑→謹慎</span></div><span class="cl-tag gold">GOLD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="g3"><div class="cl-cb"></div><div class="cl-txt"><strong>RS：Silver/銅/GDX</strong><span>金屬同類方向一致？</span></div><span class="cl-tag gold">GOLD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="g4"><div class="cl-cb"></div><div class="cl-txt"><strong>等週三後才入場</strong><span>今日是否≥週三確認</span></div><span class="cl-tag gold">GOLD</span></div>
+        <div class="cl-sec-t" style="margin-top:10px"><span style="color:var(--red)">▸</span>05 — Oil</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="o1"><div class="cl-cb"></div><div class="cl-txt"><strong>12am — Daily/H4 SMT</strong><span>HO1! vs CL1! divergence</span></div><span class="cl-tag oil">OIL</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="o2"><div class="cl-cb"></div><div class="cl-txt"><strong>長端利率/通膨 10Y/Breakeven</strong><span>長端↑/通膨升溫→Oil偏多</span></div><span class="cl-tag oil">OIL</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="o3"><div class="cl-cb"></div><div class="cl-txt"><strong>RS：USOIL/UKOIL/XOM/XOP</strong><span>石油股領先CL1!？</span></div><span class="cl-tag oil">OIL</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="o4"><div class="cl-cb"></div><div class="cl-txt"><strong>入場窗口 6/7/8/9am</strong><span>FOMC周可持倉不新開</span></div><span class="cl-tag oil">OIL</span></div>
+        <div class="cl-sec-t" style="margin-top:10px"><span style="color:var(--pur)">▸</span>06 — BTC/ETH</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="c1"><div class="cl-cb"></div><div class="cl-txt"><strong>M/W SMT 確認</strong><span>月線/週線High-Low結構</span></div><span class="cl-tag btc">BTC</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="c2"><div class="cl-cb"></div><div class="cl-txt"><strong>H4 BPR 掃描</strong><span>Balance Price Range 反應區</span></div><span class="cl-tag btc">BTC</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="c3"><div class="cl-cb"></div><div class="cl-txt"><strong>H4 FVG 確認</strong><span>未填補FVG，方向與結構一致</span></div><span class="cl-tag btc">BTC</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="c4"><div class="cl-cb"></div><div class="cl-txt"><strong>BTC Dominance RS</strong><span>BTC.D↑→BTC；↓→Altcoin</span></div><span class="cl-tag btc">BTC</span></div>
+        <div class="cl-sec-t" style="margin-top:10px"><span style="color:var(--lo)">▸</span>07 — EOD</div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="e1"><div class="cl-cb"></div><div class="cl-txt"><strong>今日SMT信號記錄</strong><span>影響明日計畫</span></div><span class="cl-tag all">EOD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="e2"><div class="cl-cb"></div><div class="cl-txt"><strong>所有持倉H4巡倉</strong><span>SL/TP是否需調整</span></div><span class="cl-tag all">EOD</span></div>
+        <div class="cl-item" onclick="toggleCL(this)" data-id="e3"><div class="cl-cb"></div><div class="cl-txt"><strong>明日Pre-Market計畫</strong><span>哪些資產有入場機會？</span></div><span class="cl-tag all">EOD</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RS -->
+  <div class="jpanel" id="jp-rs">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--blue)">🏛 Bond 利率結構</div>
+        <div class="rs-row"><span class="rs-sym">2Y Yield</span><select data-rs="2y" onchange="jDirty()"><option>—</option><option>上行↑</option><option>下行↓</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">10Y Yield</span><select data-rs="10y" onchange="jDirty()"><option>—</option><option>上行↑</option><option>下行↓</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">2Y10Y Spread</span><select data-rs="2y10y" onchange="jDirty()"><option>—</option><option>陡化</option><option>平化</option><option>倒掛</option></select></div>
+        <div class="rs-row"><span class="rs-sym">TLT/IEF</span><select data-rs="tlt" onchange="jDirty()"><option>—</option><option>TLT強</option><option>IEF強</option><option>中性</option></select></div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--cyan)">💱 FX DXY組成</div>
+        <div class="rs-row"><span class="rs-sym">DXY</span><select data-rs="dxy" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">EUR/USD</span><select data-rs="eur" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">USD/JPY</span><select data-rs="jpy" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">GBP/USD</span><select data-rs="gbp" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">USD/CHF</span><select data-rs="chf" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--amber)">🥇 Gold 金屬同類</div>
+        <div class="rs-row"><span class="rs-sym">Silver (SIL)</span><select data-rs="silver" onchange="jDirty()"><option>—</option><option>⬆強/確認</option><option>⬇弱/背離</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">Copper (HG)</span><select data-rs="copper" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">GDX</span><select data-rs="gdx" onchange="jDirty()"><option>—</option><option>⬆強/領先</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">GDXJ</span><select data-rs="gdxj" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--red)">🛢 Oil 能源同類</div>
+        <div class="rs-row"><span class="rs-sym">Brent (UKOIL)</span><select data-rs="brent" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">WTI (USOIL)</span><select data-rs="wti" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">XOM</span><select data-rs="xom" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">XOP</span><select data-rs="xop" onchange="jDirty()"><option>—</option><option>⬆強</option><option>⬇弱</option><option>中性</option></select></div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--pur)">₿ Crypto 公鏈</div>
+        <div class="rs-row"><span class="rs-sym">BTC Dominance</span><select data-rs="btcd" onchange="jDirty()"><option>—</option><option>⬆BTC集中</option><option>⬇Alt Season</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">ETH/BTC</span><select data-rs="ethbtc" onchange="jDirty()"><option>—</option><option>⬆ETH強</option><option>⬇BTC強</option><option>中性</option></select></div>
+        <div class="rs-row"><span class="rs-sym">Total2/Total</span><select data-rs="total2" onchange="jDirty()"><option>—</option><option>⬆Alt流入</option><option>⬇撤退</option><option>中性</option></select></div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-title" style="color:var(--lo)">📊 COT持倉</div>
+        <div class="rs-row"><span class="rs-sym">ZB Spec Net</span><select data-rs="cotzb" onchange="jDirty()"><option>—</option><option>淨多</option><option>淨空</option><option>極端</option></select></div>
+        <div class="rs-row"><span class="rs-sym">EUR Spec Net</span><select data-rs="coteur" onchange="jDirty()"><option>—</option><option>淨多</option><option>淨空</option><option>極端</option></select></div>
+        <div class="rs-row"><span class="rs-sym">Gold Spec Net</span><select data-rs="cotgold" onchange="jDirty()"><option>—</option><option>淨多</option><option>淨空</option><option>極端</option></select></div>
+        <div class="rs-row"><span class="rs-sym">WTI Spec Net</span><select data-rs="cotwti" onchange="jDirty()"><option>—</option><option>淨多</option><option>淨空</option><option>極端</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Macro -->
+  <div class="jpanel" id="jp-macro">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+      <div class="card"><span class="fl">Macro Regime</span><select data-macro="regime" onchange="jDirty()" style="width:100%"><option>—</option><option>Risk-On</option><option>Risk-Off</option><option>Inflation</option><option>Deflation</option><option>Recovery</option></select></div>
+      <div class="card"><span class="fl">Yield Curve</span><select data-macro="yield" onchange="jDirty()" style="width:100%"><option>—</option><option>Steepening</option><option>Flattening</option><option>Inverted</option><option>Bear Steepen</option><option>Bull Steepen</option></select></div>
+      <div class="card"><span class="fl">DXY Direction</span><select data-macro="dxy" onchange="jDirty()" style="width:100%"><option>—</option><option>Bullish</option><option>Bearish</option><option>Ranging</option></select></div>
+      <div class="card"><span class="fl">Fed Stance</span><select data-macro="fed" onchange="jDirty()" style="width:100%"><option>—</option><option>Hawkish</option><option>Pivot Watch</option><option>Cutting</option><option>QE</option></select></div>
+      <div class="card"><span class="fl">Inflation Exp.</span><select data-macro="inflation" onchange="jDirty()" style="width:100%"><option>—</option><option>Rising</option><option>Falling</option><option>Stable</option><option>Stagflation</option></select></div>
+    </div>
+    <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:8px">Asset Signal Direction</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+      <div class="card"><span class="fl" style="color:var(--blue)">🏛 Bond</span><select data-sig="bond" onchange="jDirty()" style="width:100%"><option>NEUTRAL</option><option>LONG</option><option>SHORT</option><option>NO TRADE</option></select></div>
+      <div class="card"><span class="fl" style="color:var(--cyan)">💱 FX</span><select data-sig="fx" onchange="jDirty()" style="width:100%"><option>NEUTRAL</option><option>LONG</option><option>SHORT</option><option>NO TRADE</option></select></div>
+      <div class="card"><span class="fl" style="color:var(--amber)">🥇 Gold</span><select data-sig="gold" onchange="jDirty()" style="width:100%"><option>NEUTRAL</option><option>LONG</option><option>SHORT</option><option>NO TRADE</option></select></div>
+      <div class="card"><span class="fl" style="color:var(--red)">🛢 Oil</span><select data-sig="oil" onchange="jDirty()" style="width:100%"><option>NEUTRAL</option><option>LONG</option><option>SHORT</option><option>NO TRADE</option></select></div>
+      <div class="card"><span class="fl" style="color:var(--pur)">₿ BTC</span><select data-sig="btc" onchange="jDirty()" style="width:100%"><option>NEUTRAL</option><option>LONG</option><option>SHORT</option><option>NO TRADE</option></select></div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="jpanel" id="jp-notes">
+    <div class="g2" style="align-items:start">
+      <div>
+        <div class="sec"><div class="acc" style="background:var(--amber)"></div><h2>今日市場觀察</h2></div>
+        <span class="fl" style="margin-bottom:5px">盤前展望 / Pre-Market</span>
+        <textarea data-note="pre" onchange="jDirty()" style="width:100%;min-height:130px;margin-bottom:10px;resize:vertical" placeholder="今日宏觀環境評估&#10;Bond/FX/Gold/Oil/BTC方向預期&#10;需確認的關鍵條件..."></textarea>
+        <span class="fl" style="margin-bottom:5px">關鍵價位 & SMT</span>
+        <textarea data-note="levels" onchange="jDirty()" style="width:100%;min-height:120px;margin-bottom:10px;resize:vertical" placeholder="各資產關鍵支撐阻力&#10;SMT發生情況&#10;H4結構觀察..."></textarea>
+        <span class="fl" style="margin-bottom:5px">各盤段實況（Asia/LN/NY）</span>
+        <textarea data-note="sessions" onchange="jDirty()" style="width:100%;min-height:100px;resize:vertical" placeholder="亞盤：&#10;倫敦盤：&#10;紐約盤："></textarea>
+      </div>
+      <div>
+        <div class="sec"><div class="acc" style="background:var(--green)"></div><h2>交易想法 & 明日計畫</h2></div>
+        <span class="fl" style="margin-bottom:5px">Trade Ideas</span>
+        <textarea data-note="ideas" onchange="jDirty()" style="width:100%;min-height:130px;margin-bottom:10px;resize:vertical" placeholder="Trade Idea 1:&#10;  資產: / 方向: LONG/SHORT&#10;  入場條件: &#10;  SL: / TP: / RR:&#10;  信心度: High/Med/Low"></textarea>
+        <span class="fl" style="margin-bottom:5px">EOD 複盤</span>
+        <textarea data-note="eod" onchange="jDirty()" style="width:100%;min-height:80px;margin-bottom:10px;resize:vertical" placeholder="今日結果、SMT是否如預期、學習點..."></textarea>
+        <span class="fl" style="margin-bottom:5px">明日計畫 / Tomorrow</span>
+        <textarea data-note="tomorrow" onchange="jDirty()" style="width:100%;min-height:100px;resize:vertical" placeholder="明日入場計畫、觀察標的、注意事項..."></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-a" onclick="saveJournal()">💾 儲存</button>
+      <button class="btn btn-g" onclick="pushJournalNotion()">◩ Push to Notion</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="jpanel" id="jp-hist"><div id="histList"><p style="font-family:var(--mono);font-size:11px;color:var(--lo);padding:20px 0">尚無歷史記錄</p></div></div>
+</div>
+
+<!-- ═══════ GANTT ═══════ -->
+<div class="page" id="page-gantt">
+  <div class="sec"><div class="acc" style="background:var(--amber)"></div><h2>Weekly Trading Gantt</h2><div class="sbadge">Bond → FX → Gold → Oil → BTC</div><button class="btn btn-g btn-sm" style="margin-left:auto" onclick="resetGantt()">↺ 重置預設</button><button class="btn btn-a btn-sm" onclick="saveGantt()">💾 儲存佈局</button></div>
+  <div class="info-box">點擊任意任務方塊可<span class="hl">編輯內容</span>，點擊「+」可<span class="hl">新增任務</span>，右鍵可<span class="hl">刪除</span>。修改後點「儲存佈局」。</div>
+  <div class="gantt-wrap">
+    <table class="gantt-table" id="ganttTable"></table>
+  </div>
+  <!-- Edit Popover -->
+  <div class="edit-popover" id="editPopover" style="display:none">
+    <span class="fl">任務名稱</span>
+    <input type="text" id="epTitle" style="width:100%;margin-bottom:6px">
+    <span class="fl">副標題</span>
+    <input type="text" id="epSub" style="width:100%;margin-bottom:6px">
+    <span class="fl">樣式</span>
+    <select id="epStyle" style="width:100%;margin-bottom:8px">
+      <option value="rev">灰色（分析/Review）</option>
+      <option value="bond">藍色（Bond）</option>
+      <option value="fx">青色（FX）</option>
+      <option value="gold">橙色（Gold）</option>
+      <option value="oil">紅色（Oil）</option>
+      <option value="btc">紫色（BTC）</option>
+      <option value="ok">綠色（OK/許可）</option>
+      <option value="warn">警告（FOMC禁止）</option>
+    </select>
+    <div class="ep-row">
+      <button class="btn btn-a btn-sm" onclick="applyEdit()">✓ 確認</button>
+      <button class="btn btn-g btn-sm" onclick="closeEditPopover()">取消</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTask()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRADE LOG ═══════ -->
+<div class="page" id="page-tradelog">
+  <div class="sec"><div class="acc" style="background:var(--pur)"></div><h2>Trade Log</h2><div class="sbadge" id="tcount">0 trades</div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-a btn-sm" onclick="openAddModal()">+ 新增交易</button>
+      <button class="btn btn-g btn-sm" onclick="pushAllTrades()">◩ Notion全推</button>
+    </div>
+  </div>
+  <div class="g4 mb16">
+    <div class="sbox"><div class="sl">Total Trades</div><div class="sv sm" id="ts-tot">0</div></div>
+    <div class="sbox"><div class="sl">Win Rate</div><div class="sv sm" id="ts-wr">—</div></div>
+    <div class="sbox"><div class="sl">Avg R</div><div class="sv sm" id="ts-avgr">—</div></div>
+    <div class="sbox"><div class="sl">Cumulative P&L</div><div class="sv sm" id="ts-pnl">—</div></div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="ttable">
+      <thead><tr><th>#</th><th>日期</th><th>資產</th><th>方向</th><th>入場</th><th>出場</th><th>Risk%</th><th>R</th><th>P&L</th><th>狀態</th><th>理由</th><th>圖表</th><th>操作</th></tr></thead>
+      <tbody id="tBody"><tr><td colspan="13" class="t-empty">尚無記錄，點擊「+ 新增交易」</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════ AI COACH ═══════ -->
+<div class="page" id="page-coach">
+  <div class="coach-layout">
+    <!-- Sidebar -->
+    <div class="coach-sidebar">
+      <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--lo);margin-bottom:10px">快速分析</div>
+      <div class="coach-quick-btns">
+        <button class="qbtn" onclick="coachQuick('weekly_review')">📊 本週整體回顧<br><span style="font-size:9px;opacity:.6">分析本週日誌與交易記錄</span></button>
+        <button class="qbtn" onclick="coachQuick('trade_patterns')">🔍 交易模式分析<br><span style="font-size:9px;opacity:.6">找出你的強項與弱點</span></button>
+        <button class="qbtn" onclick="coachQuick('risk_review')">⚖️ 風險管理評估<br><span style="font-size:9px;opacity:.6">R倍數、月度執行率分析</span></button>
+        <button class="qbtn" onclick="coachQuick('rule_check')">📋 規則遵守評分<br><span style="font-size:9px;opacity:.6">FICC交易規則執行情況</span></button>
+        <button class="qbtn" onclick="coachQuick('tomorrow_prep')">🎯 明日備戰建議<br><span style="font-size:9px;opacity:.6">結合日誌和當前RS狀態</span></button>
+        <button class="qbtn" onclick="coachQuick('psychology')">🧠 交易心理評估<br><span style="font-size:9px;opacity:.6">從日誌分析情緒模式</span></button>
+      </div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-bottom:8px;letter-spacing:.04em">GEMINI MODEL</div>
+        <select id="geminiModel" style="width:100%;font-size:10px">
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash（快）</option>
+          <option value="gemini-1.5-pro">Gemini 1.5 Pro（精準）</option>
+          <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash（最新）</option>
+        </select>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-top:10px;line-height:1.6">API Key 在 Settings 頁設定<br>資料：最近14天日誌 + 所有交易記錄</div>
+      </div>
+    </div>
+    <!-- Chat Area -->
+    <div class="coach-main">
+      <div class="coach-messages" id="coachMessages">
+        <div class="msg ai">
+          <div class="msg-avatar">G</div>
+          <div class="msg-bubble">
+            <h4>FICC Trading Coach — Powered by Gemini</h4>
+            你好！我是你的專屬 FICC 交易教練，由 Gemini AI 驅動。<br><br>
+            我可以讀取你的 <b>Daily Journal</b>（最近14天）和 <b>Trade Log</b>（所有記錄），從中分析你的：<br>
+            <ul>
+              <li>交易模式與習慣</li>
+              <li>風險管理執行率</li>
+              <li>FICC 交易規則遵守情況</li>
+              <li>勝率、R倍數、心理狀態</li>
+            </ul>
+            點擊左側快速分析按鈕，或直接輸入問題開始。<br><br>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--lo)">需要先在 Settings 填入 Gemini API Key</span>
+          </div>
+        </div>
+      </div>
+      <div class="coach-input-area">
+        <textarea id="coachInput" style="flex:1;min-height:44px;max-height:120px;resize:vertical;background:var(--bg1);border:1px solid var(--border2);color:var(--hi);font-family:var(--sans);font-size:12px;padding:10px 12px;border-radius:var(--r);outline:none" placeholder="輸入問題... 例：最近5筆交易我的執行有什麼問題？" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();coachSend()}"></textarea>
+        <button class="btn btn-gemini" onclick="coachSend()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          送出
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ NEWS ═══════ -->
+<div class="page" id="page-news">
+  <div class="sec"><div class="acc" style="background:var(--blue)"></div><h2>Economic Calendar</h2><div class="sbadge">ForexFactory</div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span id="newsStatus" style="font-family:var(--mono);font-size:9px;color:var(--lo)"></span>
+      <button class="btn btn-a btn-sm" onclick="loadNews(true)">↺ 重新載入</button>
+      <a href="https://www.forexfactory.com/calendar" target="_blank" class="btn btn-g btn-sm" style="text-decoration:none">↗ 開啟原網站</a>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <div class="news-filter">
+      <button class="filter-btn active all" data-impact="all" onclick="filterNews('all',this)">全部</button>
+      <button class="filter-btn" data-impact="high" onclick="filterNews('high',this)">🔴 高影響</button>
+      <button class="filter-btn" data-impact="med" onclick="filterNews('med',this)">🟡 中影響</button>
+      <button class="filter-btn" data-impact="low" onclick="filterNews('low',this)">🟢 低影響</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="currencyFilters">
+      <button class="filter-btn active all" data-cur="all" onclick="filterCurrency('all',this)">全幣種</button>
+      <button class="filter-btn" data-cur="USD" onclick="filterCurrency('USD',this)">USD</button>
+      <button class="filter-btn" data-cur="EUR" onclick="filterCurrency('EUR',this)">EUR</button>
+      <button class="filter-btn" data-cur="GBP" onclick="filterCurrency('GBP',this)">GBP</button>
+      <button class="filter-btn" data-cur="JPY" onclick="filterCurrency('JPY',this)">JPY</button>
+      <button class="filter-btn" data-cur="CAD" onclick="filterCurrency('CAD',this)">CAD</button>
+      <button class="filter-btn" data-cur="AUD" onclick="filterCurrency('AUD',this)">AUD</button>
+      <button class="filter-btn" data-cur="CHF" onclick="filterCurrency('CHF',this)">CHF</button>
+      <button class="filter-btn" data-cur="CNY" onclick="filterCurrency('CNY',this)">CNY</button>
+    </div>
+  </div>
+  <div id="newsContainer"><div class="news-loading">⟳ 載入中...</div></div>
+</div>
+
+<!-- ═══════ RISK ═══════ -->
+<div class="page" id="page-risk">
+  <div class="sec"><div class="acc" style="background:var(--red)"></div><h2>Risk Monitor</h2></div>
+  <div class="g4 mb16">
+    <div class="sbox"><div class="sl">Open Trades</div><div class="sv" id="r-open">0</div></div>
+    <div class="sbox"><div class="sl">Total Risk Exposed</div><div class="sv" id="r-risk">0%</div><div class="ss">單日上限 6%</div></div>
+    <div class="sbox"><div class="sl">Monthly P&L</div><div class="sv" id="r-mpnl" style="color:var(--lo)">—</div></div>
+    <div class="sbox"><div class="sl">Monthly Trades</div><div class="sv" id="r-mtrades">0</div><div class="ss">上限 15/月</div></div>
+  </div>
+  <div class="g2 mb16">
+    <div class="card">
+      <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">月度交易次數</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div class="sl" style="color:var(--blue)">Bond</div><div style="font-family:var(--mono);font-size:16px;color:var(--hi)"><span id="rc-bond">0</span><span style="font-size:11px;color:var(--lo)">/2</span></div></div>
+        <div><div class="sl" style="color:var(--cyan)">FX</div><div style="font-family:var(--mono);font-size:16px;color:var(--hi)"><span id="rc-fx">0</span><span style="font-size:11px;color:var(--lo)">/5</span></div></div>
+        <div><div class="sl" style="color:var(--amber)">Gold</div><div style="font-family:var(--mono);font-size:16px;color:var(--hi)"><span id="rc-gold">0</span><span style="font-size:11px;color:var(--lo)">/2</span></div></div>
+        <div><div class="sl" style="color:var(--red)">Oil</div><div style="font-family:var(--mono);font-size:16px;color:var(--hi)"><span id="rc-oil">0</span><span style="font-size:11px;color:var(--lo)">/2</span></div></div>
+        <div><div class="sl" style="color:var(--pur)">BTC/ETH</div><div style="font-family:var(--mono);font-size:16px;color:var(--hi)"><span id="rc-btc">0</span><span style="font-size:11px;color:var(--lo)">/4</span></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">資金配置</div>
+      <div class="rb-wrap"><div class="rb-lbl"><span style="color:var(--blue)">Bond</span><span style="color:var(--lo)">20%</span></div><div class="rb"><div class="rb-fill" style="width:20%;background:var(--blue)"></div></div></div>
+      <div class="rb-wrap"><div class="rb-lbl"><span style="color:var(--cyan)">FX</span><span style="color:var(--lo)">30%</span></div><div class="rb"><div class="rb-fill" style="width:30%;background:var(--cyan)"></div></div></div>
+      <div class="rb-wrap"><div class="rb-lbl"><span style="color:var(--amber)">Gold</span><span style="color:var(--lo)">10%</span></div><div class="rb"><div class="rb-fill" style="width:10%;background:var(--amber)"></div></div></div>
+      <div class="rb-wrap"><div class="rb-lbl"><span style="color:var(--red)">Oil</span><span style="color:var(--lo)">10%</span></div><div class="rb"><div class="rb-fill" style="width:10%;background:var(--red)"></div></div></div>
+      <div class="rb-wrap"><div class="rb-lbl"><span style="color:var(--pur)">BTC/ETH</span><span style="color:var(--lo)">30%</span></div><div class="rb"><div class="rb-fill" style="width:30%;background:var(--pur)"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SETTINGS ═══════ -->
+<div class="page" id="page-settings">
+  <div class="sec"><div class="acc" style="background:var(--lo)"></div><h2>Settings</h2></div>
+  <div class="card mb16" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🤖 Gemini API Key</div>
+    <div class="settings-row">
+      <div class="settings-label">Gemini API Key</div>
+      <input type="password" id="geminiKey" placeholder="AIzaSy..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('geminiKey')">👁</button>
+    </div>
+    <div style="padding:8px 12px;background:rgba(66,133,244,.08);border:1px solid rgba(66,133,244,.2);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.7">
+      取得免費 Key：<a href="https://aistudio.google.com/app/apikey" target="_blank" class="notion-link">aistudio.google.com/app/apikey</a><br>
+      Gemini 1.5 Flash 每日免費 1500 次請求，足夠每日使用。
+    </div>
+  </div>
+  <div class="card mb16" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🔌 Notion Integration</div>
+    <div class="settings-row">
+      <div class="settings-label">Notion Token</div>
+      <input type="password" id="notionToken" placeholder="secret_..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('notionToken')">👁</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Trade Log DB</div>
+      <a href="https://www.notion.so/c1c01fea8baa4797a76f3358b610d40c" target="_blank" class="notion-link">FICC Trade Log →</a>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Daily Journal DB</div>
+      <a href="https://www.notion.so/b8d6575fdcc643e2ba344d7077e2b5a8" target="_blank" class="notion-link">FICC Daily Journal →</a>
+    </div>
+  </div>
+  <div class="card" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">💾 本地資料管理</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-bottom:10px;line-height:1.7">所有資料存於 localStorage（ficc_trades / ficc_journals / ficc_settings）。圖片以 base64 儲存，建議定期匯出備份。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="exportData()">📤 匯出 JSON</button>
+      <button class="btn btn-g btn-sm" onclick="importData()">📥 匯入 JSON</button>
+      <button class="btn btn-danger btn-sm" onclick="clearData()">🗑 清除所有資料</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRADE MODAL -->
+<div class="modal-bg" id="tradeModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">交易記錄</h3><span class="modal-close" onclick="closeModal()">✕</span></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+        <div class="fg"><span class="fl">日期</span><input type="date" id="m-date" style="width:100%"></div>
+        <div class="fg"><span class="fl">資產</span><select id="m-asset" style="width:100%"><option>BOND</option><option>FX</option><option>GOLD</option><option>OIL</option><option>BTC</option><option>ETH</option></select></div>
+        <div class="fg"><span class="fl">方向</span><select id="m-dir" style="width:100%"><option>LONG</option><option>SHORT</option></select></div>
+        <div class="fg"><span class="fl">狀態</span><select id="m-status" style="width:100%"><option>OPEN</option><option>CLOSED</option><option>TP HIT</option><option>SL HIT</option></select></div>
+        <div class="fg"><span class="fl">入場價</span><input type="number" id="m-entry" style="width:100%" placeholder="0.0000" step="0.0001"></div>
+        <div class="fg"><span class="fl">出場價</span><input type="number" id="m-exit" style="width:100%" placeholder="0.0000" step="0.0001"></div>
+        <div class="fg"><span class="fl">Risk %</span><input type="number" id="m-risk" style="width:100%" placeholder="2" min="0" max="10" step="0.5"></div>
+        <div class="fg"><span class="fl">R 倍數</span><input type="number" id="m-r" style="width:100%" placeholder="0.0" step="0.1"></div>
+      </div>
+      <div class="fg mb12"><span class="fl">入場理由</span><textarea id="m-reason" style="width:100%;min-height:60px;resize:vertical"></textarea></div>
+      <div class="fg mb12"><span class="fl">出場理由</span><textarea id="m-exitr" style="width:100%;min-height:50px;resize:vertical"></textarea></div>
+      <div>
+        <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:8px">📊 Chart Images by Timeframe</div>
+        <div class="ctabs">
+          <button class="ctab active" onclick="showCtab('1M',this)">Monthly</button>
+          <button class="ctab" onclick="showCtab('W',this)">Weekly</button>
+          <button class="ctab" onclick="showCtab('D',this)">Daily</button>
+          <button class="ctab" onclick="showCtab('H4',this)">H4</button>
+          <button class="ctab" onclick="showCtab('H1',this)">H1</button>
+          <button class="ctab" onclick="showCtab('M15',this)">M15</button>
+        </div>
+        <div id="ctabs-container"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <button class="btn btn-a" onclick="saveTrade()">💾 儲存</button>
+        <button class="btn btn-g" onclick="pushTradeNotion()">◩ Notion</button>
+        <button class="btn btn-danger" style="margin-left:auto" id="delBtn" onclick="deleteTrade()">刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════
+// DATA & STORAGE
+// ════════════════════════════════════
+const TF = ['1M','W','D','H4','H1','M15'];
+let trades=[], journals={}, settings={}, ganttData={};
+let currentTradeId=null;
+
+function load(){
+  try{trades=JSON.parse(localStorage.getItem('ficc_trades')||'[]');}catch(e){trades=[];}
+  try{journals=JSON.parse(localStorage.getItem('ficc_journals')||'{}');}catch(e){journals={};}
+  try{settings=JSON.parse(localStorage.getItem('ficc_settings')||'{}');}catch(e){settings={};}
+  try{ganttData=JSON.parse(localStorage.getItem('ficc_gantt')||'{}');}catch(e){ganttData={};}
+  if(settings.notionToken) document.getElementById('notionToken').value=settings.notionToken;
+  if(settings.geminiKey) document.getElementById('geminiKey').value=settings.geminiKey;
+  if(settings.fomcDate){document.getElementById('fomcDate').value=settings.fomcDate;document.getElementById('fomcDisp').textContent=settings.fomcDate;}
+}
+function saveAll(){
+  localStorage.setItem('ficc_trades',JSON.stringify(trades));
+  localStorage.setItem('ficc_journals',JSON.stringify(journals));
+  localStorage.setItem('ficc_settings',JSON.stringify(settings));
+  localStorage.setItem('ficc_gantt',JSON.stringify(ganttData));
+}
+function saveSettings(){
+  settings.notionToken=document.getElementById('notionToken').value;
+  settings.geminiKey=document.getElementById('geminiKey').value;
+  saveAll();
+}
+function toggleKeyVis(id){
+  const el=document.getElementById(id);
+  el.type=el.type==='password'?'text':'password';
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify({trades,journals,settings,ganttData,at:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ficc-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function importData(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=e=>{const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.trades)trades=d.trades;if(d.journals)journals=d.journals;if(d.settings)settings=d.settings;if(d.ganttData)ganttData=d.ganttData;saveAll();renderTrades();loadJournal(currentJDate);toast('✓ 匯入成功');}catch{toast('⚠ 格式錯誤','e');}};r.readAsText(e.target.files[0]);};inp.click();
+}
+function clearData(){if(!confirm('確認清除所有資料？'))return;trades=[];journals={};settings={};ganttData={};['ficc_trades','ficc_journals','ficc_settings','ficc_gantt'].forEach(k=>localStorage.removeItem(k));renderTrades();loadJournal(currentJDate);toast('已清除');}
+
+// ════════════════════════════════════
+// CLOCK & SESSION
+// ════════════════════════════════════
+function tick(){
+  const now=new Date(),pad=n=>String(n).padStart(2,'0');
+  const utc=now.getTime()+now.getTimezoneOffset()*60000;
+  const ny=new Date(utc-5*3600000);
+  document.getElementById('clock').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())+' TWN / '+pad(ny.getHours())+':'+pad(ny.getMinutes())+' NY';
+  const t=ny.getHours()*100+ny.getMinutes(),el=document.getElementById('sess');
+  if(t>=800&&t<1700){el.textContent='● NY';el.className='sess ny';}
+  else if(t>=300&&t<1200){el.textContent='● LN';el.className='sess lon';}
+  else if(t>=2000||t<300){el.textContent='● ASIA';el.className='sess asia';}
+  else{el.textContent='○ OFF';el.className='sess off';}
+}
+setInterval(tick,1000);tick();
+
+// ════════════════════════════════════
+// NAV
+// ════════════════════════════════════
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='risk')updateRisk();
+  if(id==='tradelog')renderTrades();
+  if(id==='gantt')renderGantt();
+}
+function showJTab(id,btn){
+  document.querySelectorAll('.jpanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.jtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('jp-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='hist')renderHistory();
+}
+
+// ════════════════════════════════════
+// JOURNAL
+// ════════════════════════════════════
+const DAYS=['週日','週一','週二','週三','週四','週五','週六'];
+let currentJDate=new Date().toISOString().split('T')[0];
+let jIsDirty=false;
+let jAutoTimer=null;
+
+function initJDate(){
+  document.getElementById('jDate').value=currentJDate;
+  const dt=new Date(currentJDate+'T12:00:00');
+  document.getElementById('jDayLabel').textContent=currentJDate+' ('+DAYS[dt.getDay()]+')';
+  loadJournal(currentJDate);
+}
+function jDateShift(d){
+  const dt=new Date(currentJDate+'T12:00:00');dt.setDate(dt.getDate()+d);
+  const p=n=>String(n).padStart(2,'0');
+  currentJDate=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());
+  document.getElementById('jDate').value=currentJDate;
+  const d2=new Date(currentJDate+'T12:00:00');
+  document.getElementById('jDayLabel').textContent=currentJDate+' ('+DAYS[d2.getDay()]+')';
+  loadJournal(currentJDate);
+}
+document.getElementById('jDate').addEventListener('change',function(){
+  currentJDate=this.value;
+  const dt=new Date(this.value+'T12:00:00');
+  document.getElementById('jDayLabel').textContent=this.value+' ('+DAYS[dt.getDay()]+')';
+  loadJournal(this.value);
+});
+function loadJournal(date){
+  currentJDate=date;
+  const j=journals[date]||{};
+  document.querySelectorAll('.cl-item').forEach(el=>{
+    const ck=j.cl&&j.cl[el.dataset.id];
+    el.classList.toggle('ck',!!ck);
+    el.querySelector('.cl-cb').textContent=ck?'✓':'';
+  });
+  updateProgress();
+  document.querySelectorAll('[data-rs]').forEach(sel=>{if(j.rs&&j.rs[sel.dataset.rs])sel.value=j.rs[sel.dataset.rs];else sel.selectedIndex=0;});
+  document.querySelectorAll('[data-macro]').forEach(sel=>{if(j.macro&&j.macro[sel.dataset.macro])sel.value=j.macro[sel.dataset.macro];else sel.selectedIndex=0;});
+  document.querySelectorAll('[data-sig]').forEach(sel=>{if(j.signals&&j.signals[sel.dataset.sig])sel.value=j.signals[sel.dataset.sig];else sel.selectedIndex=0;});
+  document.querySelectorAll('[data-note]').forEach(ta=>{ta.value=(j.notes&&j.notes[ta.dataset.note])||'';});
+  jIsDirty=false;
+  const b=document.getElementById('jBadge');
+  if(journals[date]){b.style.display='inline-block';b.className='jbadge jb-saved';b.textContent='✓ 已存';}
+  else{b.style.display='none';}
+}
+function jDirty(){
+  jIsDirty=true;
+  const b=document.getElementById('jBadge');
+  b.style.display='inline-block';b.className='jbadge jb-dirty';b.textContent='● 未存';
+  clearTimeout(jAutoTimer);
+  jAutoTimer=setTimeout(()=>saveJournal(),3000);
+}
+function getJournalSnapshot(){
+  const cl={},rs={},macro={},signals={},notes={};
+  document.querySelectorAll('.cl-item').forEach(el=>cl[el.dataset.id]=el.classList.contains('ck'));
+  document.querySelectorAll('[data-rs]').forEach(sel=>rs[sel.dataset.rs]=sel.value);
+  document.querySelectorAll('[data-macro]').forEach(sel=>macro[sel.dataset.macro]=sel.value);
+  document.querySelectorAll('[data-sig]').forEach(sel=>signals[sel.dataset.sig]=sel.value);
+  document.querySelectorAll('[data-note]').forEach(ta=>notes[ta.dataset.note]=ta.value);
+  const all=document.querySelectorAll('.cl-item').length;
+  const done=document.querySelectorAll('.cl-item.ck').length;
+  return{cl,rs,macro,signals,notes,score:done,total:all,savedAt:new Date().toISOString()};
+}
+function saveJournal(){
+  journals[currentJDate]=getJournalSnapshot();
+  saveAll();jIsDirty=false;
+  const b=document.getElementById('jBadge');
+  b.style.display='inline-block';b.className='jbadge jb-saved';b.textContent='✓ 已存';
+  toast('✓ 日誌已存 '+currentJDate);
+}
+function setFOMC(v){settings.fomcDate=v;document.getElementById('fomcDisp').textContent=v||'未設定';saveAll();}
+
+// Checklist
+function toggleCL(el){el.classList.toggle('ck');el.querySelector('.cl-cb').textContent=el.classList.contains('ck')?'✓':'';updateProgress();jDirty();}
+function updateProgress(){
+  const all=document.querySelectorAll('.cl-item'),done=document.querySelectorAll('.cl-item.ck');
+  const pct=all.length?Math.round(done.length/all.length*100):0;
+  document.getElementById('clProg').textContent=done.length+'/'+all.length;
+  document.getElementById('clFill').style.width=pct+'%';
+}
+
+// History
+function renderHistory(){
+  const el=document.getElementById('histList');
+  const dates=Object.keys(journals).sort().reverse();
+  if(!dates.length){el.innerHTML='<p style="font-family:var(--mono);font-size:11px;color:var(--lo);padding:20px 0">尚無歷史記錄</p>';return;}
+  el.innerHTML=dates.map(d=>{
+    const j=journals[d],s=j.score||0,t=j.total||1;
+    const dt=new Date(d+'T12:00:00');
+    const sigs=j.signals||{};
+    const dots=['bond','fx','gold','oil','btc'].map(k=>{
+      const v=sigs[k]||'';const c=v==='LONG'?'#00d67e':v==='SHORT'?'#ff4757':v==='NO TRADE'?'#f5a623':'#304060';
+      return`<div style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0" title="${k}: ${v}"></div>`;
+    }).join('');
+    const snippet=(j.notes&&j.notes.pre||'').slice(0,50)||'—';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px;cursor:pointer" onclick="goJDate('${d}')">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--hi);min-width:90px">${d}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--lo)">${DAYS[dt.getDay()]}</span>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--lo)">${s}/${t}</span>
+      <div style="display:flex;gap:4px;margin-left:auto">${dots}</div>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--lo);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${snippet}</span>
+    </div>`;
+  }).join('');
+}
+function goJDate(d){
+  currentJDate=d;document.getElementById('jDate').value=d;
+  const dt=new Date(d+'T12:00:00');
+  document.getElementById('jDayLabel').textContent=d+' ('+DAYS[dt.getDay()]+')';
+  loadJournal(d);
+  showJTab('cl',document.querySelector('.jtab'));
+}
+
+// Notion push journal
+async function pushJournalNotion(){
+  const token=document.getElementById('notionToken').value.trim();
+  if(!token){toast('⚠ 請先填入 Notion Token','e');return;}
+  const j=getJournalSnapshot(),sig=j.signals||{},macro=j.macro||{};
+  const body={parent:{database_id:'b8d6575f-dcc6-43e2-ba34-4d7077e2b5a8'},properties:{
+    'Journal Title':{title:[{text:{content:'FICC Journal — '+currentJDate}}]},
+    'Date':{date:{start:currentJDate}},
+    'Checklist Score':{number:j.score||0},
+    'Market Notes':{rich_text:[{text:{content:((j.notes&&j.notes.pre)||'')+(j.notes&&j.notes.sessions?'\n'+j.notes.sessions:'')}}]},
+    'RS Notes':{rich_text:[{text:{content:(j.notes&&j.notes.eod)||''}}]},
+    'Tomorrow Plan':{rich_text:[{text:{content:(j.notes&&j.notes.tomorrow)||''}}]},
+  }};
+  if(sig.bond)body.properties['Bond Signal']={select:{name:sig.bond}};
+  if(sig.fx)body.properties['FX Signal']={select:{name:sig.fx}};
+  if(sig.gold)body.properties['Gold Signal']={select:{name:sig.gold}};
+  if(sig.oil)body.properties['Oil Signal']={select:{name:sig.oil}};
+  if(sig.btc)body.properties['BTC Signal']={select:{name:sig.btc}};
+  if(macro.regime)body.properties['Macro Regime']={select:{name:macro.regime}};
+  if(macro.yield)body.properties['Yield Curve']={select:{name:macro.yield}};
+  if(macro.dxy)body.properties['DXY Direction']={select:{name:macro.dxy}};
+  const ok=await notionPush('https://api.notion.com/v1/pages',body,token);
+  if(ok)toast('✓ 日誌已推送至 Notion');
+}
+
+// ════════════════════════════════════
+// GANTT
+// ════════════════════════════════════
+const DEFAULT_GANTT={
+  rows:[
+    {label:'🔭 REVIEW',sub:'每週開盤前',color:'rev',
+      mon:[{title:'M/W SMT Check',sub:'DXY·CHF·GBP',style:'rev'},{title:'Fri SMT→Entry?',sub:'',style:'rev'},{title:'FOMC確認',sub:'',style:'rev'},{title:'Macro AI討論',sub:'10min',style:'rev'}],
+      tue:[{title:'備用確認日',sub:'Fri無SMT',style:'rev'}],
+      wed:[{title:'Mid-Week確認',sub:'M/W SMT再查',style:'rev'}],
+      thu:[{title:'持倉管理',sub:'',style:'rev'}],
+      fri:[{title:'Fri SMT記錄',sub:'影響下週',style:'rev'},{title:'週度複盤',sub:'Trade Review',style:'rev'}]
+    },
+    {label:'🏛 BOND',sub:'ZF1!/ZB1! | 2/mo | RR 6-8x',color:'bond',
+      mon:[{title:'6am SMT Check',sub:'',style:'rev'},{title:'Entry 7/8/9am',sub:'若Fri有SMT',style:'bond'}],
+      tue:[{title:'Entry 7/8/9am',sub:'若Fri無SMT',style:'bond'},{title:'H4巡倉',sub:'',style:'rev'}],
+      wed:[{title:'H4巡倉',sub:'不新開',style:'rev'}],
+      thu:[{title:'H4巡倉',sub:'',style:'rev'}],
+      fri:[{title:'SMT觀察記錄',sub:'影響下週',style:'bond'}]
+    },
+    {label:'💱 FX',sub:'6E1!/DXY | 5/mo | RR 4-6x',color:'fx',
+      mon:[{title:'分析日',sub:'等Bond先走',style:'rev'}],
+      tue:[{title:'分析日',sub:'Bond方向確認',style:'rev'}],
+      wed:[{title:'12am SMT',sub:'',style:'fx'},{title:'3/4/5am LN',sub:'London KZ',style:'fx'},{title:'8/9/10am NY',sub:'NY KZ',style:'fx'}],
+      thu:[{title:'12am SMT',sub:'',style:'fx'},{title:'LN/NY Entry',sub:'',style:'fx'}],
+      fri:[{title:'12am SMT',sub:'',style:'fx'},{title:'LN Entry',sub:'最後機會',style:'fx'}]
+    },
+    {label:'🥇 GOLD',sub:'GC1!/SIL1! | 2/mo | RR 6-8x',color:'gold',
+      mon:[{title:'12am D/H4 SMT',sub:'',style:'rev'},{title:'2Y Yield分析',sub:'短端利率',style:'rev'}],
+      tue:[{title:'H4巡倉',sub:'',style:'rev'}],
+      wed:[{title:'12am D/H4 SMT',sub:'',style:'gold'},{title:'3/4/5am LN',sub:'',style:'gold'},{title:'8/9/10am NY',sub:'',style:'gold'}],
+      thu:[{title:'H4巡倉',sub:'',style:'rev'},{title:'Silver/銅/GDX RS',sub:'',style:'rev'}],
+      fri:[{title:'H4巡倉',sub:'',style:'rev'}]
+    },
+    {label:'🛢 OIL',sub:'CL1!/HO1! | 2/mo | RR 4-6x',color:'oil',
+      mon:[{title:'12am D/H4 SMT',sub:'',style:'rev'},{title:'10Y+Breakeven',sub:'長端/通膨',style:'rev'}],
+      tue:[{title:'H4巡倉',sub:'',style:'rev'}],
+      wed:[{title:'12am D/H4 SMT',sub:'',style:'oil'},{title:'6/7/8/9am Entry',sub:'美盤前後',style:'oil'}],
+      thu:[{title:'6/7/8am Entry',sub:'',style:'oil'},{title:'USOIL/UKOIL RS',sub:'',style:'rev'}],
+      fri:[{title:'H4巡倉',sub:'',style:'rev'}]
+    },
+    {label:'₿ BTC/ETH',sub:'Liq+Growth | 4/mo | RR 4-6x',color:'btc',
+      mon:[{title:'H4 BPR/FVG',sub:'掃描',style:'btc'},{title:'BTC.D RS',sub:'',style:'rev'}],
+      tue:[{title:'H4巡倉/入場',sub:'',style:'btc'}],
+      wed:[{title:'H4 BPR/FVG',sub:'',style:'btc'},{title:'入場評估',sub:'',style:'btc'}],
+      thu:[{title:'H4巡倉/入場',sub:'',style:'btc'}],
+      fri:[{title:'週末部位評估',sub:'',style:'btc'}]
+    },
+    {label:'⚠ FOMC WEEK',sub:'特殊風控規則',color:'warn',
+      mon:[{title:'Bond禁止新倉',sub:'',style:'warn'}],
+      tue:[{title:'FX禁止新倉',sub:'',style:'warn'}],
+      wed:[{title:'Gold禁止新倉',sub:'FOMC當日',style:'warn'}],
+      thu:[{title:'OIL可持倉',sub:'',style:'oil'},{title:'BTC可持倉',sub:'',style:'btc'}],
+      fri:[{title:'恢復正常Routine',sub:'',style:'ok'}]
+    }
+  ]
+};
+const DAYS_COL=['mon','tue','wed','thu','fri'];
+const DAYS_LABEL=['MON 週一','TUE 週二','WED 週三 ★','THU 週四','FRI 週五'];
+
+let editingTask=null; // {rowIdx,dayKey,taskIdx}
+
+function getGanttRows(){
+  if(ganttData.rows&&ganttData.rows.length) return ganttData.rows;
+  return JSON.parse(JSON.stringify(DEFAULT_GANTT.rows));
+}
+function saveGantt(){ganttData.rows=getGanttRows();saveAll();toast('✓ Gantt 佈局已儲存');}
+function resetGantt(){if(!confirm('重置為預設值？'))return;ganttData={};saveAll();renderGantt();toast('已重置');}
+
+function renderGantt(){
+  const rows=getGanttRows();
+  const table=document.getElementById('ganttTable');
+  let html=`<thead><tr>
+    <th class="gc" style="font-size:9px;color:var(--lo)">ASSET / TIME</th>
+    ${DAYS_LABEL.map(d=>`<th class="gd">${d}</th>`).join('')}
+  </tr></thead><tbody>`;
+  rows.forEach((row,ri)=>{
+    html+=`<tr>
+      <td><div class="gac"><span class="gan" style="color:var(--${row.color})">${row.label}</span><span class="gas">${row.sub}</span></div></td>`;
+    DAYS_COL.forEach(day=>{
+      const tasks=row[day]||[];
+      html+=`<td class="gcell">`;
+      tasks.forEach((t,ti)=>{
+        html+=`<div class="gtask ${t.style}" onclick="openEditPopover(${ri},'${day}',${ti},event)" oncontextmenu="deleteTaskCtx(${ri},'${day}',${ti},event)">
+          <b>${t.title}</b>${t.sub?`<s>${t.sub}</s>`:''}
+        </div>`;
+      });
+      html+=`<button class="add-task-btn" onclick="addTask(${ri},'${day}',event)" title="新增任務">+</button>`;
+      html+=`</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody>`;
+  table.innerHTML=html;
+}
+
+function openEditPopover(ri,day,ti,event){
+  event.stopPropagation();
+  const rows=getGanttRows();
+  const t=rows[ri][day][ti];
+  editingTask={ri,day,ti};
+  document.getElementById('epTitle').value=t.title;
+  document.getElementById('epSub').value=t.sub||'';
+  document.getElementById('epStyle').value=t.style||'rev';
+  const ep=document.getElementById('editPopover');
+  ep.style.display='block';
+  let x=event.clientX+10,y=event.clientY-10;
+  if(x+240>window.innerWidth)x=window.innerWidth-250;
+  if(y+180>window.innerHeight)y=window.innerHeight-190;
+  ep.style.left=x+'px';ep.style.top=y+'px';
+}
+function closeEditPopover(){document.getElementById('editPopover').style.display='none';editingTask=null;}
+function applyEdit(){
+  if(!editingTask)return;
+  const rows=getGanttRows();
+  rows[editingTask.ri][editingTask.day][editingTask.ti]={
+    title:document.getElementById('epTitle').value,
+    sub:document.getElementById('epSub').value,
+    style:document.getElementById('epStyle').value
+  };
+  ganttData.rows=rows;
+  closeEditPopover();renderGantt();
+}
+function deleteTask(){
+  if(!editingTask)return;
+  if(!confirm('刪除此任務？'))return;
+  const rows=getGanttRows();
+  rows[editingTask.ri][editingTask.day].splice(editingTask.ti,1);
+  ganttData.rows=rows;closeEditPopover();renderGantt();
+}
+function deleteTaskCtx(ri,day,ti,event){
+  event.preventDefault();event.stopPropagation();
+  if(!confirm('右鍵刪除此任務？'))return;
+  const rows=getGanttRows();
+  rows[ri][day].splice(ti,1);ganttData.rows=rows;renderGantt();
+}
+function addTask(ri,day,event){
+  event.stopPropagation();
+  const rows=getGanttRows();
+  rows[ri][day].push({title:'新任務',sub:'',style:'rev'});
+  ganttData.rows=rows;renderGantt();
+  const newTi=rows[ri][day].length-1;
+  setTimeout(()=>{
+    const cells=document.getElementById('ganttTable').querySelectorAll('.gcell');
+    const ri2=ri,d2=DAYS_COL.indexOf(day);
+    const tasks=cells[ri2*5+d2].querySelectorAll('.gtask');
+    if(tasks[newTi])tasks[newTi].click();
+  },50);
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#editPopover')&&!e.target.closest('.gtask')&&!e.target.closest('.add-task-btn'))closeEditPopover();
+});
+
+// ════════════════════════════════════
+// TRADES
+// ════════════════════════════════════
+const AC={BOND:'bond',FX:'fx',GOLD:'gold',OIL:'oil',BTC:'btc',ETH:'btc'};
+function renderTrades(){
+  const tbody=document.getElementById('tBody');
+  document.getElementById('tcount').textContent=trades.length+' trades';
+  if(!trades.length){tbody.innerHTML='<tr><td colspan="13" class="t-empty">尚無記錄</td></tr>';updateStats();return;}
+  tbody.innerHTML=trades.map((t,i)=>{
+    const ac=AC[t.asset]||'';
+    const dc=t.dir==='LONG'?'dir-l':'dir-s';
+    const pd=t.pnl!=null?(t.pnl>=0?`<span class="pnl-p">+${t.pnl.toFixed(2)}R</span>`:`<span class="pnl-n">${t.pnl.toFixed(2)}R</span>`):'—';
+    const cc=t.charts?Object.values(t.charts).filter(Boolean).length:0;
+    return`<tr onclick="openEditModal(${t.id})">
+      <td style="color:var(--lo)">${i+1}</td>
+      <td>${t.date}</td>
+      <td><span class="cl-tag ${ac}">${t.asset}</span></td>
+      <td class="${dc}">${t.dir==='LONG'?'⬆ L':'⬇ S'}</td>
+      <td>${t.entry||'—'}</td><td>${t.exit||'—'}</td>
+      <td>${t.risk}%</td><td>${t.r?t.r+'R':'—'}</td>
+      <td>${pd}</td>
+      <td style="color:${t.status==='OPEN'?'var(--amber)':t.status==='TP HIT'?'var(--green)':t.status==='SL HIT'?'var(--red)':'var(--lo)'}">${t.status}</td>
+      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.reason||'—'}</td>
+      <td style="text-align:center"><span style="font-family:var(--mono);font-size:10px;color:${cc?'var(--cyan)':'var(--lo)'}">${cc?'📊'+cc:'—'}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();currentTradeId=${t.id};if(confirm('刪除？')){trades=trades.filter(x=>x.id!==${t.id});saveAll();renderTrades();}">✕</button></td>
+    </tr>`;
+  }).join('');
+  updateStats();
+}
+function updateStats(){
+  const cl=trades.filter(t=>t.status!=='OPEN'&&t.pnl!=null);
+  const w=cl.filter(t=>t.pnl>0);
+  document.getElementById('ts-tot').textContent=trades.length;
+  document.getElementById('ts-wr').textContent=cl.length?(w.length/cl.length*100).toFixed(0)+'%':'—';
+  const avg=cl.length?(cl.reduce((s,t)=>s+t.pnl,0)/cl.length).toFixed(2):null;
+  document.getElementById('ts-avgr').textContent=avg?avg+'R':'—';
+  const sum=cl.length?cl.reduce((s,t)=>s+t.pnl,0).toFixed(2):null;
+  const pe=document.getElementById('ts-pnl');
+  if(sum){pe.textContent=(parseFloat(sum)>=0?'+':'')+sum+'R';pe.style.color=parseFloat(sum)>=0?'var(--green)':'var(--red)';}
+  else pe.textContent='—';
+}
+function updateRisk(){
+  const m=new Date().getMonth();
+  const open=trades.filter(t=>t.status==='OPEN');
+  const mt=trades.filter(t=>new Date(t.date).getMonth()===m);
+  const c={BOND:0,FX:0,GOLD:0,OIL:0,BTC:0,ETH:0};
+  mt.forEach(t=>{c[t.asset]=(c[t.asset]||0)+1;});
+  document.getElementById('r-open').textContent=open.length;
+  document.getElementById('r-risk').textContent=open.reduce((s,t)=>s+(t.risk||0),0).toFixed(1)+'%';
+  document.getElementById('r-mtrades').textContent=mt.length;
+  const mc=mt.filter(t=>t.status!=='OPEN'&&t.pnl!=null);
+  const mp=mc.reduce((s,t)=>s+t.pnl,0);
+  const mpe=document.getElementById('r-mpnl');
+  if(mc.length){mpe.textContent=(mp>=0?'+':'')+mp.toFixed(2)+'R';mpe.style.color=mp>=0?'var(--green)':'var(--red)';}
+  else mpe.textContent='—';
+  document.getElementById('rc-bond').textContent=c.BOND;
+  document.getElementById('rc-fx').textContent=c.FX;
+  document.getElementById('rc-gold').textContent=c.GOLD;
+  document.getElementById('rc-oil').textContent=c.OIL;
+  document.getElementById('rc-btc').textContent=(c.BTC||0)+(c.ETH||0);
+}
+
+// Modal
+function openAddModal(){
+  currentTradeId=null;window._pc={};
+  document.getElementById('modalTitle').textContent='新增交易';
+  document.getElementById('delBtn').style.display='none';
+  document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
+  ['m-asset','m-dir','m-status'].forEach(id=>document.getElementById(id).selectedIndex=0);
+  ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr'].forEach(id=>document.getElementById(id).value='');
+  buildCtabs(null);document.getElementById('tradeModal').classList.add('open');
+}
+function openEditModal(id){
+  const t=trades.find(x=>x.id===id);if(!t)return;
+  currentTradeId=id;window._pc={};
+  document.getElementById('modalTitle').textContent='編輯 '+t.asset+' — '+t.date;
+  document.getElementById('delBtn').style.display='';
+  document.getElementById('m-date').value=t.date||'';
+  document.getElementById('m-asset').value=t.asset;
+  document.getElementById('m-dir').value=t.dir;
+  document.getElementById('m-status').value=t.status;
+  document.getElementById('m-entry').value=t.entry||'';
+  document.getElementById('m-exit').value=t.exit||'';
+  document.getElementById('m-risk').value=t.risk||'';
+  document.getElementById('m-r').value=t.r||'';
+  document.getElementById('m-reason').value=t.reason||'';
+  document.getElementById('m-exitr').value=t.exitr||'';
+  buildCtabs(id);document.getElementById('tradeModal').classList.add('open');
+}
+function closeModal(){document.getElementById('tradeModal').classList.remove('open');}
+document.getElementById('tradeModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+function buildCtabs(id){
+  const t=id?trades.find(x=>x.id===id):null;
+  const imgs=t&&t.charts?t.charts:{};
+  document.getElementById('ctabs-container').innerHTML=TF.map((tf,i)=>{
+    const src=imgs[tf]||'';
+    return`<div class="cpanel ${i===0?'active':''}" id="cpanel-${tf}">
+      <div class="upload-area" id="ua-${tf}">
+        <input type="file" accept="image/*" onchange="uploadChart(event,'${tf}','${id||'new'}')">
+        ${src?`<img class="chart-img" src="${src}"><div style="display:flex;gap:6px"><button class="btn btn-danger btn-sm" onclick="rmChart(event,'${tf}','${id||'new'}')">✕ 移除</button></div>`:'<p>拖曳或點擊上傳 <span>'+tf+'</span> 圖表</p>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+function showCtab(tf,btn){
+  document.querySelectorAll('.cpanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('cpanel-'+tf).classList.add('active');btn.classList.add('active');
+}
+function uploadChart(e,tf,tradeId){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const src=ev.target.result;
+    if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t){if(!t.charts)t.charts={};t.charts[tf]=src;saveAll();}}
+    else{window._pc=window._pc||{};window._pc[tf]=src;}
+    const ua=document.getElementById('ua-'+tf);
+    ua.innerHTML=`<img class="chart-img" src="${src}"><div style="display:flex;gap:6px"><button class="btn btn-danger btn-sm" onclick="rmChart(event,'${tf}','${tradeId}')">✕ 移除</button></div><input type="file" accept="image/*" onchange="uploadChart(event,'${tf}','${tradeId}')">`;
+  };r.readAsDataURL(f);
+}
+function rmChart(e,tf,tradeId){
+  e.stopPropagation();
+  if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t&&t.charts)delete t.charts[tf];saveAll();}
+  else if(window._pc)delete window._pc[tf];
+  document.getElementById('ua-'+tf).innerHTML=`<input type="file" accept="image/*" onchange="uploadChart(event,'${tf}','${tradeId}')"><p>拖曳或點擊上傳 <span>${tf}</span> 圖表</p>`;
+}
+function saveTrade(){
+  const d={date:document.getElementById('m-date').value,asset:document.getElementById('m-asset').value,dir:document.getElementById('m-dir').value,status:document.getElementById('m-status').value,entry:parseFloat(document.getElementById('m-entry').value)||0,exit:parseFloat(document.getElementById('m-exit').value)||0,risk:parseFloat(document.getElementById('m-risk').value)||2,r:parseFloat(document.getElementById('m-r').value)||0,reason:document.getElementById('m-reason').value,exitr:document.getElementById('m-exitr').value};
+  d.pnl=d.status!=='OPEN'?(d.dir==='LONG'?d.r:-d.r):null;
+  if(currentTradeId){const t=trades.find(x=>x.id===currentTradeId);if(t){Object.assign(t,d);if(window._pc&&Object.keys(window._pc).length){if(!t.charts)t.charts={};Object.assign(t.charts,window._pc);}}}
+  else{d.id=Date.now();d.charts=window._pc||{};trades.push(d);}
+  saveAll();renderTrades();updateRisk();closeModal();toast('✓ 交易已儲存');
+}
+function deleteTrade(){if(!currentTradeId||!confirm('刪除？'))return;trades=trades.filter(t=>t.id!==currentTradeId);saveAll();renderTrades();updateRisk();closeModal();}
+
+// Notion trades
+async function notionPush(url,body,token){
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'Notion-Version':'2022-06-28'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok){toast('⚠ Notion: '+(d.message||r.status),'e');return false;}
+    return true;
+  }catch(e){toast('⚠ CORS/網路限制。請從同一網域或透過 Notion Web Clipper 使用','e');return false;}
+}
+async function pushTradeNotion(){
+  const token=document.getElementById('notionToken').value.trim();
+  if(!token){toast('⚠ 請填入 Notion Token','e');return;}
+  let t;if(currentTradeId)t=trades.find(x=>x.id===currentTradeId);
+  if(!t){toast('請先儲存交易','e');return;}
+  const body={parent:{database_id:'c1c01fea-8baa-4797-a76f-3358b610d40c'},properties:{'Trade Name':{title:[{text:{content:t.asset+' '+t.dir+' — '+t.date}}]},'Date':{date:{start:t.date}},'Asset':{select:{name:t.asset}},'Direction':{select:{name:t.dir}},'Risk %':{number:t.risk||0},'R Multiple':{number:t.r||0},'Status':{select:{name:t.status}},'Entry Reason':{rich_text:[{text:{content:t.reason||''}}]}}};
+  if(t.pnl!=null)body.properties['PnL (R)']={number:t.pnl};
+  if(await notionPush('https://api.notion.com/v1/pages',body,token))toast('✓ 交易已推送 Notion');
+}
+async function pushAllTrades(){
+  const token=document.getElementById('notionToken').value.trim();
+  if(!token){toast('⚠ 請填入 Notion Token','e');return;}
+  if(!trades.length){toast('無交易記錄','e');return;}
+  toast('⏳ 推送中...');
+  let ok=0;
+  for(const t of trades){
+    const body={parent:{database_id:'c1c01fea-8baa-4797-a76f-3358b610d40c'},properties:{'Trade Name':{title:[{text:{content:t.asset+' '+t.dir+' — '+t.date}}]},'Date':{date:{start:t.date}},'Asset':{select:{name:t.asset}},'Direction':{select:{name:t.dir}},'Risk %':{number:t.risk||0},'Status':{select:{name:t.status}}}};
+    if(t.pnl!=null)body.properties['PnL (R)']={number:t.pnl};
+    if(await notionPush('https://api.notion.com/v1/pages',body,token))ok++;
+    await new Promise(r=>setTimeout(r,350));
+  }
+  toast('✓ 完成 '+ok+'/'+trades.length+' 筆');
+}
+
+// ════════════════════════════════════
+// AI COACH — GEMINI
+// ════════════════════════════════════
+function buildContext(){
+  const recentDates=Object.keys(journals).sort().reverse().slice(0,14);
+  const journalText=recentDates.map(d=>{
+    const j=journals[d];
+    const notes=j.notes||{};
+    const sigs=j.signals||{};
+    const macro=j.macro||{};
+    return`[${d}] Checklist:${j.score||0}/${j.total||0} | Regime:${macro.regime||'—'} | DXY:${macro.dxy||'—'} | Signals: Bond ${sigs.bond} FX ${sigs.fx} Gold ${sigs.gold} Oil ${sigs.oil} BTC ${sigs.btc}\nNotes: ${(notes.pre||'').slice(0,200)}\nIdeas: ${(notes.ideas||'').slice(0,200)}\nEOD: ${(notes.eod||'').slice(0,200)}`;
+  }).join('\n\n');
+  const tradeText=trades.map(t=>`[${t.date}] ${t.asset} ${t.dir} | Entry:${t.entry} Exit:${t.exit||'open'} | Risk:${t.risk}% R:${t.r}x | PnL:${t.pnl!=null?t.pnl.toFixed(2)+'R':'open'} | Status:${t.status} | Reason: ${(t.reason||'').slice(0,100)}`).join('\n');
+  return{journalText,tradeText};
+}
+const QUICK_PROMPTS={
+  weekly_review:'請分析我最近的交易日誌與交易記錄，給出本週整體回顧。包括：1) 執行紀律分析（Checklist完成率、交易規則遵守情況）；2) 宏觀判斷準確度；3) 交易心理觀察；4) 本週最值得注意的優點與改進點。請以中文回答，結構清晰。',
+  trade_patterns:'請分析我所有的交易記錄，找出我的交易模式。包括：1) 哪個資產的勝率最高？2) 哪個方向（LONG/SHORT）執行較好？3) R倍數分佈分析；4) 我的強項和需要改進的地方。請用具體數字說話。',
+  risk_review:'請評估我的風險管理執行情況。分析：1) 每筆交易的 Risk% 是否符合規定（Bond/FX 2-4%，Gold/Oil 2%，BTC 2-6%）；2) 月度交易次數是否在上限內；3) 是否有在 FOMC 週違規交易；4) 給出具體的風控改善建議。',
+  rule_check:'請根據 FICC 交易規則核查我的執行情況：1) Bond→FX→Gold→Oil 交易順序是否遵守；2) 是否有在 FOMC 週開 Bond/FX/Gold 新倉；3) 入場時間窗口是否正確；4) SMT 確認流程；5) 規則遵守總評分（0-100分）。',
+  tomorrow_prep:'根據我最近的日誌和當前 RS 記錄，請幫我準備明日的交易計畫。包括：1) 明日需要重點關注的資產；2) 關鍵的入場條件；3) 需要警惕的風險；4) 今日的 Checklist 完成情況總結。',
+  psychology:'請從我的日誌筆記中，分析我的交易心理模式。包括：1) 是否有情緒化決策的跡象；2) 倉位管理是否受情緒影響；3) 在虧損/盈利之後的行為模式；4) 給出交易心理改善的具體建議。'
+};
+async function coachSend(){
+  const input=document.getElementById('coachInput').value.trim();
+  if(!input)return;
+  document.getElementById('coachInput').value='';
+  appendMsg(input,'user');
+  await callGemini(input);
+}
+async function coachQuick(type){
+  const prompt=QUICK_PROMPTS[type];
+  appendMsg(prompt,'user');
+  await callGemini(prompt);
+}
+function appendMsg(text,role){
+  const messages=document.getElementById('coachMessages');
+  const div=document.createElement('div');
+  div.className='msg '+role;
+  if(role==='ai'){
+    div.innerHTML=`<div class="msg-avatar">G</div><div class="msg-bubble">${formatAIText(text)}</div>`;
+  }else{
+    div.innerHTML=`<div class="msg-avatar">你</div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  }
+  messages.appendChild(div);
+  messages.scrollTop=messages.scrollHeight;
+  return div;
+}
+function appendTyping(){
+  const messages=document.getElementById('coachMessages');
+  const div=document.createElement('div');div.className='msg ai';div.id='typingMsg';
+  div.innerHTML=`<div class="msg-avatar">G</div><div class="msg-bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>`;
+  messages.appendChild(div);messages.scrollTop=messages.scrollHeight;
+}
+function removeTyping(){const t=document.getElementById('typingMsg');if(t)t.remove();}
+function formatAIText(text){
+  return text.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/#{3}(.*)/g,'<h4>$1</h4>').replace(/#{2}(.*)/g,'<h4>$1</h4>').replace(/#{1}(.*)/g,'<h4>$1</h4>').replace(/\n- (.*)/g,'\n<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+}
+async function callGemini(userPrompt){
+  const key=document.getElementById('geminiKey').value.trim()||settings.geminiKey||'';
+  if(!key){appendMsg('⚠ 請先在 Settings 頁填入 Gemini API Key（免費，取得方式：aistudio.google.com/app/apikey）','ai');return;}
+  appendTyping();
+  const{journalText,tradeText}=buildContext();
+  const model=document.getElementById('geminiModel').value;
+  const systemCtx=`你是一個專業的 FICC 大類資產交易教練，專精於 Bond/FX/Gold/Oil/BTC 的 SMT（Smart Money Theory）交易方法。你有以下資料：
+
+=== 最近14天交易日誌 ===
+${journalText||'（無日誌記錄）'}
+
+=== 所有交易記錄 ===
+${tradeText||'（無交易記錄）'}
+
+=== FICC 交易規則 ===
+- 交易順序：Bond → FX → Gold → Oil → BTC
+- 月度次數上限：Bond 2筆、FX 5筆、Gold 2筆、Oil 2筆、BTC/ETH 4筆
+- Risk上限：Bond/FX 2-4%，Gold/Oil 2%，BTC 2-6%，單日總風險<6%
+- FOMC週：Bond/FX/Gold禁止新倉，Oil/BTC可持倉不新開
+- 入場時間：Bond 7/8/9am，FX 3/4/5am LN + 8/9/10am NY（週三起），Gold/Oil 類FX
+- SMT確認流程：月線→週線→日線→H4結構`;
+  try{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:systemCtx+'\n\n用戶問題：'+userPrompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})});
+    const data=await res.json();
+    removeTyping();
+    if(data.error){appendMsg('⚠ Gemini 錯誤：'+data.error.message,'ai');return;}
+    const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'（無回應）';
+    appendMsg(reply,'ai');
+  }catch(e){removeTyping();appendMsg('⚠ 網路錯誤：'+e.message+'<br><br>請確認 API Key 正確，且允許從本地 HTML 呼叫 Google API。','ai');}
+}
+
+// ════════════════════════════════════
+// NEWS — FOREXFACTORY
+// ════════════════════════════════════
+let allEvents=[],newsFilter='all',curFilter='all';
+let newsLoaded=false;
+
+async function loadNews(force=false){
+  if(newsLoaded&&!force)return;
+  const el=document.getElementById('newsContainer');
+  const status=document.getElementById('newsStatus');
+  el.innerHTML='<div class="news-loading">⟳ 正在從 ForexFactory 載入日曆數據...</div>';
+  status.textContent='載入中...';
+  const PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://thingproxy.freeboard.io/fetch/'];
+  const TARGET='https://www.forexfactory.com/calendar';
+  let html='',worked=false;
+  for(const proxy of PROXIES){
+    try{
+      const res=await fetch(proxy+encodeURIComponent(TARGET),{signal:AbortSignal.timeout(8000)});
+      if(res.ok){html=await res.text();worked=true;break;}
+    }catch(e){continue;}
+  }
+  if(!worked){
+    el.innerHTML=`<div class="news-error">⚠ 無法直接獲取 ForexFactory（CORS 限制）。ForexFactory 有反爬蟲保護。</div>
+    <div class="info-box">
+      <b style="color:var(--amber)">解決方案：</b><br>
+      1. <b>直接開啟</b>：<a href="https://www.forexfactory.com/calendar" target="_blank" class="notion-link">forexfactory.com/calendar ↗</a><br>
+      2. <b>使用 Investing.com API</b>（已整合，見下方）<br>
+      3. 或使用 <a href="https://nfs.faireconomy.media/ff_calendar_thisweek.xml" target="_blank" class="notion-link">ForexFactory XML Feed ↗</a>（部分代理可用）
+    </div>`;
+    await loadInvestingCalendar();
+    return;
+  }
+  allEvents=parseFF(html);
+  newsLoaded=true;
+  status.textContent='✓ '+allEvents.length+' 個事件';
+  renderNews();
+}
+
+function parseFF(html){
+  const events=[];
+  try{
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(html,'text/html');
+    const rows=doc.querySelectorAll('.calendar__row');
+    let lastDate='',lastTime='';
+    rows.forEach(row=>{
+      if(row.classList.contains('calendar__row--day-breaker')){
+        const dte=row.querySelector('.calendar__cell--date');
+        if(dte)lastDate=dte.textContent.trim();
+        return;
+      }
+      const timeEl=row.querySelector('.calendar__time');
+      const time=timeEl?.textContent.trim()||lastTime;
+      if(time)lastTime=time;
+      const cur=row.querySelector('.calendar__currency')?.textContent.trim()||'';
+      const title=row.querySelector('.calendar__event-title')?.textContent.trim()||row.querySelector('.calendar__event')?.textContent.trim()||'';
+      if(!title)return;
+      const impEl=row.querySelector('.calendar__impact span');
+      const impClass=impEl?.className||'';
+      let impact='low';
+      if(impClass.includes('red')||impClass.includes('high'))impact='high';
+      else if(impClass.includes('orange')||impClass.includes('medium'))impact='med';
+      const actual=row.querySelector('.calendar__actual')?.textContent.trim()||'';
+      const forecast=row.querySelector('.calendar__forecast')?.textContent.trim()||'';
+      const previous=row.querySelector('.calendar__previous')?.textContent.trim()||'';
+      events.push({date:lastDate,time:lastTime,currency:cur,title,impact,actual,forecast,previous});
+    });
+  }catch(e){}
+  return events;
+}
+
+async function loadInvestingCalendar(){
+  const el=document.getElementById('newsContainer');
+  const existing=el.querySelector('.news-error');
+  const notice=document.createElement('div');
+  notice.style.cssText='font-family:var(--mono);font-size:10px;color:var(--amber);margin-bottom:12px;padding:8px 12px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.2);border-radius:3px';
+  notice.textContent='⟳ 嘗試備用來源（ForexFactory XML Feed）...';
+  if(existing)existing.after(notice);
+  try{
+    const PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
+    const XML_URL='https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
+    let xml='',ok=false;
+    for(const p of PROXIES){
+      try{const r=await fetch(p+encodeURIComponent(XML_URL),{signal:AbortSignal.timeout(8000)});if(r.ok){xml=await r.text();ok=true;break;}}catch{}
+    }
+    if(ok&&xml){
+      allEvents=parseFFXML(xml);
+      document.getElementById('newsStatus').textContent='✓ XML '+allEvents.length+' 個事件';
+      notice.textContent='✓ XML Feed 載入成功（'+allEvents.length+' 個事件）';
+      notice.style.color='var(--green)';notice.style.background='var(--greenD)';notice.style.borderColor='rgba(0,214,126,.2)';
+      newsLoaded=true;renderNews();
+    }else{
+      notice.textContent='⚠ XML Feed 也無法載入。請直接開啟 ForexFactory 網站。';
+      loadMockEvents();
+    }
+  }catch(e){notice.textContent='⚠ 備用來源失敗。顯示本週範例數據。';loadMockEvents();}
+}
+
+function parseFFXML(xml){
+  const events=[];
+  try{
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(xml,'text/xml');
+    const items=doc.querySelectorAll('event');
+    items.forEach(item=>{
+      const title=item.querySelector('title')?.textContent||'';
+      const country=item.querySelector('country')?.textContent||'';
+      const date=item.querySelector('date')?.textContent||'';
+      const time=item.querySelector('time')?.textContent||'';
+      const impact=item.querySelector('impact')?.textContent?.toLowerCase()||'low';
+      const actual=item.querySelector('actual')?.textContent||'';
+      const forecast=item.querySelector('forecast')?.textContent||'';
+      const previous=item.querySelector('previous')?.textContent||'';
+      const imp=impact.includes('high')?'high':impact.includes('medium')||impact.includes('moderate')?'med':'low';
+      events.push({date,time,currency:country,title,impact:imp,actual,forecast,previous});
+    });
+  }catch(e){}
+  return events;
+}
+
+function loadMockEvents(){
+  const now=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const d=(off)=>{const dt=new Date(now);dt.setDate(dt.getDate()+off);return dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());};
+  allEvents=[
+    {date:d(0),time:'08:30',currency:'USD',title:'Initial Jobless Claims',impact:'med',actual:'',forecast:'215K',previous:'218K'},
+    {date:d(0),time:'10:00',currency:'USD',title:'ISM Services PMI',impact:'high',actual:'',forecast:'53.0',previous:'52.8'},
+    {date:d(1),time:'08:30',currency:'USD',title:'Non-Farm Employment Change',impact:'high',actual:'',forecast:'185K',previous:'200K'},
+    {date:d(1),time:'08:30',currency:'USD',title:'Unemployment Rate',impact:'high',actual:'',forecast:'4.1%',previous:'4.1%'},
+    {date:d(1),time:'10:00',currency:'USD',title:'Prelim UoM Consumer Sentiment',impact:'med',actual:'',forecast:'72.5',previous:'71.1'},
+    {date:d(2),time:'All Day',currency:'EUR',title:'German Buba Monthly Report',impact:'low',actual:'',forecast:'',previous:''},
+    {date:d(3),time:'04:00',currency:'EUR',title:'German ZEW Economic Sentiment',impact:'high',actual:'',forecast:'13.0',previous:'10.3'},
+    {date:d(3),time:'08:30',currency:'USD',title:'Core CPI m/m',impact:'high',actual:'',forecast:'0.3%',previous:'0.3%'},
+    {date:d(3),time:'08:30',currency:'USD',title:'CPI y/y',impact:'high',actual:'',forecast:'2.8%',previous:'2.9%'},
+    {date:d(4),time:'08:30',currency:'USD',title:'PPI m/m',impact:'high',actual:'',forecast:'0.3%',previous:'0.2%'},
+    {date:d(4),time:'14:00',currency:'USD',title:'FOMC Minutes',impact:'high',actual:'',forecast:'',previous:''},
+  ];
+  newsLoaded=true;
+  document.getElementById('newsStatus').textContent='⚠ 範例數據';
+  renderNews();
+}
+
+function filterNews(impact,btn){
+  newsFilter=impact;
+  document.querySelectorAll('[data-impact]').forEach(b=>{
+    b.classList.remove('active','red','amber','green','all');
+    if(b.dataset.impact===impact){
+      b.classList.add('active');
+      if(impact==='high')b.classList.add('red');
+      else if(impact==='med')b.classList.add('amber');
+      else if(impact==='low')b.classList.add('green');
+      else b.classList.add('all');
+    }
+  });
+  renderNews();
+}
+function filterCurrency(cur,btn){
+  curFilter=cur;
+  document.querySelectorAll('[data-cur]').forEach(b=>{
+    b.classList.remove('active','all');
+    if(b.dataset.cur===cur)b.classList.add('active','all');
+  });
+  renderNews();
+}
+function renderNews(){
+  const el=document.getElementById('newsContainer');
+  let evts=allEvents;
+  if(newsFilter!=='all')evts=evts.filter(e=>e.impact===newsFilter);
+  if(curFilter!=='all')evts=evts.filter(e=>e.currency===curFilter);
+  if(!evts.length){el.innerHTML='<div class="news-loading">目前篩選條件下無事件</div>';return;}
+  const byDate={};
+  evts.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
+  el.innerHTML=Object.entries(byDate).map(([date,events])=>{
+    const dt=new Date(date+'T12:00:00');
+    const dayName=['週日','週一','週二','週三','週四','週五','週六'][dt.getDay()]||'';
+    const evHTML=events.map(e=>{
+      const impColor=e.impact==='high'?'#ff4757':e.impact==='med'?'#f5a623':'#00d67e';
+      const actualColor=e.actual?(parseFloat(e.actual)>parseFloat(e.forecast||0)?'var(--green)':'var(--red)'):'var(--lo)';
+      return`<div class="news-event">
+        <span class="news-time">${e.time||'All Day'}</span>
+        <div class="news-impact ${e.impact}" title="${e.impact} impact"></div>
+        <div class="news-body">
+          <div class="news-title">${e.title}</div>
+          <div class="news-meta">
+            <span class="news-currency">${e.currency}</span>
+            ${e.actual?`<span class="news-actual">A: ${e.actual}</span>`:''}
+            ${e.forecast?`<span class="news-forecast">F: ${e.forecast}</span>`:''}
+            ${e.previous?`<span class="news-prev">P: ${e.previous}</span>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return`<div class="news-day-label"><span>📅</span>${date} <span style="color:var(--lo);font-weight:400">${dayName}</span><span style="margin-left:auto;font-size:9px;font-weight:400">${events.length} 個事件</span></div>${evHTML}`;
+  }).join('');
+}
+
+// ════════════════════════════════════
+// TOAST
+// ════════════════════════════════════
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  if(type==='e'){el.style.background='var(--redD)';el.style.color='var(--red)';el.style.borderColor='rgba(255,71,87,.3)';}
+  else{el.style.background='var(--greenD)';el.style.color='var(--green)';el.style.borderColor='rgba(0,214,126,.3)';}
+  el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},3500);
+}
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+load();
+initJDate();
+renderTrades();
+renderGantt();
+updateRisk();
+</script>
+</body>
+</html>
