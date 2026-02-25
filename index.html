@@ -2079,92 +2079,100 @@ async function loadNews(force=false){
   if(newsLoaded&&!force)return;
   const el=document.getElementById('newsContainer');
   const status=document.getElementById('newsStatus');
-  el.innerHTML='<div class="news-loading">⟳ 正在從 ForexFactory 載入日曆數據...</div>';
+  const notice=el.querySelector('.news-notice')||document.createElement('div');
+  el.innerHTML='<div class="news-loading">⟳ 載入經濟日曆中...</div>';
   status.textContent='載入中...';
-  const PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://thingproxy.freeboard.io/fetch/'];
-  const TARGET='https://www.forexfactory.com/calendar';
-  let html='',worked=false;
+
+  // ── Try 1: FF JSON feed (most reliable, real data) ──
+  const FF_JSON='https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+  const PROXIES=[
+    u=>u,                                              // direct
+    u=>'https://corsproxy.io/?'+encodeURIComponent(u), // corsproxy
+    u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u), // allorigins
+  ];
+
   for(const proxy of PROXIES){
     try{
-      const res=await fetch(proxy+encodeURIComponent(TARGET),{signal:AbortSignal.timeout(8000)});
-      if(res.ok){html=await res.text();worked=true;break;}
+      const url=proxy(FF_JSON);
+      const r=await fetch(url,{signal:AbortSignal.timeout(7000)});
+      if(!r.ok)continue;
+      const raw=await r.text();
+      // allorigins wraps in {contents:...}
+      let json;
+      try{json=JSON.parse(raw);}catch(e){continue;}
+      if(json.contents)try{json=JSON.parse(json.contents);}catch(e){}
+      if(!Array.isArray(json)||!json.length)continue;
+
+      allEvents=parseFFJson(json);
+      newsLoaded=true;
+      status.textContent='✓ '+allEvents.length+' 個事件（本週）';
+      renderNews();
+      return;
     }catch(e){continue;}
   }
-  if(!worked){
-    el.innerHTML=`<div class="news-error">⚠ 無法直接獲取 ForexFactory（CORS 限制）。ForexFactory 有反爬蟲保護。</div>
-    <div class="info-box">
-      <b style="color:var(--amber)">解決方案：</b><br>
-      1. <b>直接開啟</b>：<a href="https://www.forexfactory.com/calendar" target="_blank" class="notion-link">forexfactory.com/calendar ↗</a><br>
-      2. <b>使用 Investing.com API</b>（已整合，見下方）<br>
-      3. 或使用 <a href="https://nfs.faireconomy.media/ff_calendar_thisweek.xml" target="_blank" class="notion-link">ForexFactory XML Feed ↗</a>（部分代理可用）
-    </div>`;
-    await loadInvestingCalendar();
-    return;
+
+  // ── Try 2: FF XML feed ──
+  const FF_XML='https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
+  for(const proxy of PROXIES){
+    try{
+      const url=proxy(FF_XML);
+      const r=await fetch(url,{signal:AbortSignal.timeout(7000)});
+      if(!r.ok)continue;
+      const xml=await r.text();
+      const parsed=parseFFXML(xml);
+      if(!parsed.length)continue;
+      allEvents=parsed;
+      newsLoaded=true;
+      status.textContent='✓ XML '+allEvents.length+' 個事件';
+      renderNews();
+      return;
+    }catch(e){continue;}
   }
-  allEvents=parseFF(html);
-  newsLoaded=true;
-  status.textContent='✓ '+allEvents.length+' 個事件';
-  renderNews();
+
+  // ── Fallback: mock data with clear warning ──
+  el.innerHTML='<div class="news-error" style="margin-bottom:10px">⚠ 無法連線至 ForexFactory。顯示範例數據，日期為相對日期僅供參考。<br><small>部署到 GitHub Pages 後可正常載入真實數據。</small></div>';
+  loadMockEvents();
+  status.textContent='⚠ 範例數據';
 }
 
-function parseFF(html){
-  const events=[];
-  try{
-    const parser=new DOMParser();
-    const doc=parser.parseFromString(html,'text/html');
-    const rows=doc.querySelectorAll('.calendar__row');
-    let lastDate='',lastTime='';
-    rows.forEach(row=>{
-      if(row.classList.contains('calendar__row--day-breaker')){
-        const dte=row.querySelector('.calendar__cell--date');
-        if(dte)lastDate=dte.textContent.trim();
-        return;
+function parseFFJson(json){
+  // FF JSON format: [{title, country, date, time, impact, forecast, previous, actual}, ...]
+  return json.map(ev=>{
+    const imp=(ev.impact||'').toLowerCase();
+    const impLevel=imp==='high'?'high':imp==='medium'||imp==='moderate'?'med':'low';
+    // date comes as "01-27-2026" (MM-DD-YYYY) or ISO
+    let dateStr=ev.date||'';
+    if(dateStr.match(/^\d{2}-\d{2}-\d{4}$/)){
+      // Convert MM-DD-YYYY → YYYY-MM-DD
+      const[m,d,y]=dateStr.split('-');
+      dateStr=`${y}-${m}-${d}`;
+    } else if(dateStr.includes('T')){
+      dateStr=dateStr.split('T')[0];
+    }
+    // time: "8:30am" → "08:30"
+    let timeStr=ev.time||'All Day';
+    if(timeStr&&timeStr!=='All Day'){
+      const tm=timeStr.match(/^(\d+):(\d+)(am|pm)$/i);
+      if(tm){
+        let h=parseInt(tm[1]);
+        const min=tm[2];
+        const ampm=tm[3].toLowerCase();
+        if(ampm==='pm'&&h!==12)h+=12;
+        if(ampm==='am'&&h===12)h=0;
+        timeStr=String(h).padStart(2,'0')+':'+min;
       }
-      const timeEl=row.querySelector('.calendar__time');
-      const time=timeEl?.textContent.trim()||lastTime;
-      if(time)lastTime=time;
-      const cur=row.querySelector('.calendar__currency')?.textContent.trim()||'';
-      const title=row.querySelector('.calendar__event-title')?.textContent.trim()||row.querySelector('.calendar__event')?.textContent.trim()||'';
-      if(!title)return;
-      const impEl=row.querySelector('.calendar__impact span');
-      const impClass=impEl?.className||'';
-      let impact='low';
-      if(impClass.includes('red')||impClass.includes('high'))impact='high';
-      else if(impClass.includes('orange')||impClass.includes('medium'))impact='med';
-      const actual=row.querySelector('.calendar__actual')?.textContent.trim()||'';
-      const forecast=row.querySelector('.calendar__forecast')?.textContent.trim()||'';
-      const previous=row.querySelector('.calendar__previous')?.textContent.trim()||'';
-      events.push({date:lastDate,time:lastTime,currency:cur,title,impact,actual,forecast,previous});
-    });
-  }catch(e){}
-  return events;
-}
-
-async function loadInvestingCalendar(){
-  const el=document.getElementById('newsContainer');
-  const existing=el.querySelector('.news-error');
-  const notice=document.createElement('div');
-  notice.style.cssText='font-family:var(--mono);font-size:10px;color:var(--amber);margin-bottom:12px;padding:8px 12px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.2);border-radius:3px';
-  notice.textContent='⟳ 嘗試備用來源（ForexFactory XML Feed）...';
-  if(existing)existing.after(notice);
-  try{
-    const PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
-    const XML_URL='https://nfs.faireconomy.media/ff_calendar_thisweek.xml';
-    let xml='',ok=false;
-    for(const p of PROXIES){
-      try{const r=await fetch(p+encodeURIComponent(XML_URL),{signal:AbortSignal.timeout(8000)});if(r.ok){xml=await r.text();ok=true;break;}}catch{}
     }
-    if(ok&&xml){
-      allEvents=parseFFXML(xml);
-      document.getElementById('newsStatus').textContent='✓ XML '+allEvents.length+' 個事件';
-      notice.textContent='✓ XML Feed 載入成功（'+allEvents.length+' 個事件）';
-      notice.style.color='var(--green)';notice.style.background='var(--greenD)';notice.style.borderColor='rgba(0,214,126,.2)';
-      newsLoaded=true;renderNews();
-    }else{
-      notice.textContent='⚠ XML Feed 也無法載入。請直接開啟 ForexFactory 網站。';
-      loadMockEvents();
-    }
-  }catch(e){notice.textContent='⚠ 備用來源失敗。顯示本週範例數據。';loadMockEvents();}
+    return{
+      date:dateStr,
+      time:timeStr,
+      currency:ev.country||'',
+      title:ev.title||'',
+      impact:impLevel,
+      actual:ev.actual||'',
+      forecast:ev.forecast||'',
+      previous:ev.previous||'',
+    };
+  }).filter(e=>e.date&&e.title);
 }
 
 function parseFFXML(xml){
