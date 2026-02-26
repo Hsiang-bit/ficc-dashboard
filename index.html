@@ -1576,19 +1576,30 @@ function buildCtabs(id){
   const imgs=t&&t.charts?t.charts:{};
   document.getElementById('ctabs-container').innerHTML=TF.map((tf,i)=>{
     const src=imgs[tf]||'';
+    const urlVal=src&&src.startsWith('http')?src:'';
+    const imgSrc=src&&!src.startsWith('http')?src:'';
     return`<div class="cpanel ${i===0?'active':''}" id="cpanel-${tf}">
+      <div style="margin-bottom:6px;display:flex;gap:6px;align-items:center">
+        <input type="text" id="url-${tf}"
+          placeholder="貼上 TradingView 圖片網址 https://..."
+          value="${urlVal}"
+          style="flex:1;font-size:11px;font-family:var(--mono)"
+          onchange="setChartUrl('${tf}','${id||'new'}',this.value.trim())"
+          onpaste="setTimeout(()=>setChartUrl('${tf}','${id||'new'}',this.value.trim()),50)">
+        ${urlVal||imgSrc?`<button class="btn btn-danger btn-sm" onclick="rmChart(event,'${tf}','${id||'new'}')">✕</button>`:''}
+      </div>
       <div class="upload-area" id="ua-${tf}" tabindex="0"
-           onclick="this.querySelector('input[type=file]').click()"
-           onfocus="this.classList.add('paste-ready')"
-           onblur="this.classList.remove('paste-ready')"
+           style="padding:12px"
            ondragover="event.preventDefault();this.classList.add('drag')"
            ondragleave="this.classList.remove('drag')"
            ondrop="handleChartDrop(event,'${tf}','${id||'new'}')">
-        <input type="file" accept="image/*" onclick="event.stopPropagation()" onchange="uploadChart(event,'${tf}','${id||'new'}')">
-        ${src
-          ? `<img class="chart-img" src="${src}" style="pointer-events:none"><div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();rmChart(event,'${tf}','${id||'new'}')">✕ 移除</button><button class="btn btn-g btn-sm" onclick="event.stopPropagation();document.getElementById('ua-${tf}').focus()">⌘V 更新</button></div>`
-          : `<p>點擊上傳 / 拖曳 / <span>⌘V 貼上</span> <span>${tf}</span> 圖表</p>
-             <div class="paste-hint">點此區域後按 <span class="paste-kbd">⌘ V</span> 貼上 TradingView 截圖</div>`}
+        <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="uploadChart(event,'${tf}','${id||'new'}')">
+        ${urlVal
+          ? `<img class="chart-img" src="${urlVal}" style="pointer-events:none" onerror="this.style.display='none';document.getElementById('url-err-${tf}').style.display='block'">
+             <div id="url-err-${tf}" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red)">⚠ 無法載入此網址的圖片</div>`
+          : imgSrc
+            ? `<img class="chart-img" src="${imgSrc}" style="pointer-events:none">`
+            : `<p style="font-size:10px">或拖曳 / 點擊上傳本地圖片</p>`}
       </div>
     </div>`;
   }).join('');
@@ -1598,6 +1609,22 @@ function showCtab(tf,btn){
   document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
   document.getElementById('cpanel-'+tf).classList.add('active');btn.classList.add('active');
 }
+function setChartUrl(tf,tradeId,url){
+  if(!url)return;
+  if(tradeId!=='new'){
+    const t=trades.find(x=>x.id==tradeId);
+    if(t){if(!t.charts)t.charts={};t.charts[tf]=url;saveAll();}
+  } else {
+    window._pc=window._pc||{};window._pc[tf]=url;
+  }
+  // Update preview
+  const ua=document.getElementById('ua-'+tf);
+  if(ua){
+    ua.innerHTML=`<img class="chart-img" src="${url}" style="pointer-events:none" onerror="this.style.display='none'">
+      <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="uploadChart(event,'${tf}','${tradeId}')">`;
+  }
+}
+
 function uploadChart(e,tf,tradeId){
   const f=e.target.files[0];if(!f)return;
   loadChartFile(f,tf,tradeId);
@@ -1620,13 +1647,12 @@ function loadChartFile(file,tf,tradeId){
 function applyChartSrc(src,tf,tradeId){
   if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t){if(!t.charts)t.charts={};t.charts[tf]=src;saveAll();}}
   else{window._pc=window._pc||{};window._pc[tf]=src;}
+  // Clear URL input (this is a local file, not a URL)
+  const urlInput=document.getElementById('url-'+tf);
+  if(urlInput)urlInput.value='';
   const ua=document.getElementById('ua-'+tf);
   ua.innerHTML=`<img class="chart-img" src="${src}" style="pointer-events:none">
-    <div style="display:flex;gap:6px;margin-top:6px">
-      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();rmChart(event,'${tf}','${tradeId}')">✕ 移除</button>
-      <button class="btn btn-g btn-sm" onclick="event.stopPropagation();document.getElementById('ua-${tf}').focus()">⌘V 更新</button>
-    </div>
-    <input type="file" accept="image/*" onclick="event.stopPropagation()" onchange="uploadChart(event,'${tf}','${tradeId}')">`;
+    <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="uploadChart(event,'${tf}','${tradeId}')">`;
   ua.classList.remove('drag','paste-ready');
   toast('✓ '+tf+' 圖表已載入');
 }
@@ -1953,25 +1979,27 @@ async function appendChartBlocks(pageId,charts,token){
   if(!charts||!Object.keys(charts).length)return;
   const TF_ORDER=['Monthly','Weekly','Daily','H4','H1','M15'];
   const blocks=[];
-  const hasImgbb=!!(settings.imgbbKey||document.getElementById('imgbbKey')?.value?.trim());
-
   blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
 
   for(const tf of TF_ORDER){
     const src=charts[tf];
     if(!src)continue;
 
-    const imgRef=hasImgbb?await uploadImageForNotion(src,tf):null;
-
-    if(imgRef){
-      blocks.push({object:'block',type:'image',image:imgRef});
+    if(src.startsWith('http')){
+      // Direct URL (TradingView link etc.) — Notion external image
+      blocks.push({object:'block',type:'image',image:{type:'external',external:{url:src}}});
     } else {
-      // No imgbb key: add a callout prompting user to set up
-      blocks.push({object:'block',type:'callout',callout:{
-        icon:{type:'emoji',emoji:'📸'},
-        rich_text:[{text:{content:tf+' — 圖表已存在本地，需設定 imgbb Key 才能上傳至 Notion（Settings → imgbb API Key）'}}],
-        color:'gray_background'
-      }});
+      // Local base64 — try imgbb if key exists, else skip with note
+      const imgRef=await uploadImageForNotion(src,tf);
+      if(imgRef){
+        blocks.push({object:'block',type:'image',image:imgRef});
+      } else {
+        blocks.push({object:'block',type:'callout',callout:{
+          icon:{type:'emoji',emoji:'📸'},
+          rich_text:[{text:{content:tf+' — 本地圖片（需設定 imgbb Key 才能上傳）'}}],
+          color:'gray_background'
+        }});
+      }
     }
 
     blocks.push({object:'block',type:'paragraph',paragraph:{
