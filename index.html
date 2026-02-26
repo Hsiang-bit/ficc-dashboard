@@ -2710,6 +2710,18 @@ async function macroAnalyze(type){
   await callGrok(macroChatHistory,true);
 }
 
+async function macroContinue(){
+  // Ask Gemini to continue from where it stopped
+  const lastAssistant=macroChatHistory.filter(m=>m.role==='assistant').pop();
+  if(!lastAssistant)return;
+  macroChatHistory.push({role:'user',content:'請繼續輸出剩餘的分析內容，從上次停止的地方繼續，不要重複已有內容。'});
+  const out=document.getElementById('macroOutput');
+  // Remove the continue button
+  const btn=out.querySelector('.btn-macro');
+  if(btn)btn.remove();
+  await callGrok(macroChatHistory,false);
+}
+
 async function macroChat(){
   const input=document.getElementById('macroFollowUp');
   const q=input.value.trim();
@@ -2749,14 +2761,16 @@ async function callGrok(messages,clearOutput=false){
   const body=JSON.stringify({
     contents:[{parts:[{text:fullPrompt}]}],
     generationConfig:{
-      temperature:0.15,        // LOW temperature = less hallucination
-      maxOutputTokens:3000,
+      temperature:0.15,
+      maxOutputTokens:8192,   // increased: macro analysis needs more tokens
       topP:0.8,
       topK:20,
     },
     safetySettings:[
       {category:'HARM_CATEGORY_HARASSMENT',threshold:'BLOCK_NONE'},
       {category:'HARM_CATEGORY_HATE_SPEECH',threshold:'BLOCK_NONE'},
+      {category:'HARM_CATEGORY_DANGEROUS_CONTENT',threshold:'BLOCK_NONE'},
+      {category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_NONE'},
     ]
   });
 
@@ -2790,11 +2804,29 @@ async function callGrok(messages,clearOutput=false){
     return;
   }
 
-  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'（無回應）';
-  macroChatHistory.push({role:'assistant',content:text});
+  const candidate=data.candidates?.[0];
+  const text=candidate?.content?.parts?.[0]?.text||'';
+  const finishReason=candidate?.finishReason||'';
 
+  if(!text){
+    const blockReason=data.promptFeedback?.blockReason||finishReason||'未知';
+    showMacroError('Gemini 未回傳內容。原因：'+blockReason+'<br><br>嘗試切換到 Gemini 2.5 Pro 或簡化問題');
+    return;
+  }
+
+  macroChatHistory.push({role:'assistant',content:text});
   if(clearOutput) out.innerHTML='';
-  out.innerHTML+=renderMacroOutput(text);
+
+  let displayText=text;
+  // If truncated mid-response, append a note and offer to continue
+  if(finishReason==='MAX_TOKENS'){
+    displayText+='\n\n---\n⚠ 回應因長度限制被截斷，點下方「繼續」取得剩餘內容。';
+    out.innerHTML+=renderMacroOutput(displayText);
+    out.innerHTML+=`<button class="btn btn-macro btn-sm" style="margin-top:8px" onclick="macroContinue()">▶ 繼續輸出</button>`;
+  } else {
+    out.innerHTML+=renderMacroOutput(displayText);
+  }
+
   out.scrollTop=out.scrollHeight;
   updateRegimeBar(text);
 }
