@@ -1977,8 +1977,9 @@ function buildTradeProps(t,tDbId){
 // ── Append chart image blocks to a Notion page ──
 async function appendChartBlocks(pageId,charts,token){
   if(!charts||!Object.keys(charts).length)return;
-  const TF_ORDER=['Monthly','Weekly','Daily','H4','H1','M15'];
+  const TF_ORDER=['1M','W','D','H4','H1','M15'];
   const blocks=[];
+  const TF_LABEL={'1M':'Monthly','W':'Weekly','D':'Daily','H4':'H4','H1':'H1','M15':'M15'};
   blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
 
   for(const tf of TF_ORDER){
@@ -2003,7 +2004,7 @@ async function appendChartBlocks(pageId,charts,token){
     }
 
     blocks.push({object:'block',type:'paragraph',paragraph:{
-      rich_text:[{text:{content:tf},annotations:{bold:true,color:'blue'}}]
+      rich_text:[{text:{content:TF_LABEL[tf]||tf},annotations:{bold:true,color:'blue'}}]
     }});
   }
 
