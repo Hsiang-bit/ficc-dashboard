@@ -168,7 +168,7 @@ select option{background:var(--bg2)}
 /* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;align-items:center;justify-content:center;padding:20px}
 .modal-bg.open{display:flex}
-.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:5px;width:100%;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:5px;width:100%;max-width:960px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
 .modal-head h3{font-family:var(--cond);font-size:14px;font-weight:700;color:var(--hi)}
 .modal-close{font-size:18px;color:var(--lo);cursor:pointer;padding:0 4px}.modal-close:hover{color:var(--red)}
@@ -188,9 +188,11 @@ select option{background:var(--bg2)}
 .btn-macro{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(219,39,119,.15));border:1px solid rgba(124,58,237,.4);color:var(--pur);font-size:calc(var(--fs) - 1px);padding:5px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--cond);font-weight:700;letter-spacing:.06em;transition:all .15s}
 .btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
 .macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
-.leg-row{display:grid;grid-template-columns:95px 1fr 1fr 95px 1fr 55px 55px 36px 28px;gap:3px;align-items:center;margin-bottom:4px}
-.leg-header{display:grid;grid-template-columns:95px 1fr 1fr 95px 1fr 55px 55px 36px 28px;gap:3px;margin-bottom:4px;padding:0 2px}
-.leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo)}
+.leg-table{overflow-x:auto;margin-bottom:0}
+.leg-row,.leg-header{display:grid;grid-template-columns:105px 90px 90px 105px 90px 52px 52px 38px 26px;gap:3px;align-items:center;min-width:620px}
+.leg-row{margin-bottom:3px}
+.leg-header{margin-bottom:4px;padding:0 2px}
+.leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo);white-space:nowrap}
 .leg-input{font-size:11px;padding:4px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);width:100%;font-family:var(--mono)}
 .leg-input:focus{border-color:var(--blue);outline:none}
 .leg-input.has-val{border-color:rgba(37,99,235,.35)}
@@ -935,11 +937,12 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
           <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">📊 分批入/出場 Legs</div>
           <button class="btn btn-g btn-sm" onclick="addLeg()" style="font-size:10px">＋ 新增 Leg</button>
         </div>
-        <!-- Header row: entryDate | entryPrice | exitDate | exitPrice | size% | risk% | ✕ -->
-        <div class="leg-header">
-          <div>入場日期</div><div>入場價</div><div>出場日期</div><div>出場價</div><div>倉位 %</div><div>Risk %</div><div></div>
+        <div class="leg-table">
+          <div class="leg-header">
+            <div>入場日期</div><div>入場價</div><div>SL</div><div>出場日期</div><div>出場價</div><div>倉%</div><div>Risk%</div><div style="color:var(--amber)">R</div><div></div>
+          </div>
+          <div id="legsContainer"></div>
         </div>
-        <div id="legsContainer"></div>
         <!-- Summary bar -->
         <div id="legsSummary" style="margin-top:8px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);font-size:10px;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
           <span>均入：<b id="sumAvgEntry" style="color:var(--hi)">—</b></span>
@@ -1888,8 +1891,8 @@ function rmChart(e,tf,tradeId){
 let _legs = []; // working copy while modal open
 
 function addLeg(leg){
-  _legs.push(leg || {entryDate:'', entryPrice:'', exitDate:'', exitPrice:'', size:'', risk:''});
-  renderLegs();
+  _legs.push(leg || {entryDate:'', entryPrice:'', sl:'', exitDate:'', exitPrice:'', size:'', risk:''});
+  calcLegsSummary();
   setTimeout(()=>{
     const rows = document.querySelectorAll('#legsContainer .leg-row');
     const last = rows[rows.length-1];
@@ -1899,8 +1902,7 @@ function addLeg(leg){
 
 function removeLeg(idx){
   _legs.splice(idx,1);
-  renderLegs();
-  calcLegsSummary();
+  calcLegsSummary(); // re-renders + recalcs
 }
 
 function legR(leg, dir){
@@ -1912,6 +1914,13 @@ function legR(leg, dir){
   return dir==='LONG' ? (exit-entry)/slDist : (entry-exit)/slDist;
 }
 
+function legRHtml(r){
+  if(r==null) return '<span style="color:var(--lo)">—</span>';
+  return r>=0
+    ? '<span style="color:var(--green)">+'+r.toFixed(2)+'R</span>'
+    : '<span style="color:var(--red)">'+r.toFixed(2)+'R</span>';
+}
+
 function renderLegs(){
   const c = document.getElementById('legsContainer');
   if(!c) return;
@@ -1920,59 +1929,49 @@ function renderLegs(){
     return;
   }
   const dir = document.getElementById('m-dir')?.value||'LONG';
-  c.innerHTML = _legs.map((leg,i) => {
-    const r = legR(leg, dir);
-    const rTxt = r!=null ? (r>=0?'<span style="color:var(--green)">+'+r.toFixed(2)+'R</span>':'<span style="color:var(--red)">'+r.toFixed(2)+'R</span>') : '<span style="color:var(--lo)">—</span>';
-    return `<div class="leg-row" id="leg-${i}">
-      <input class="leg-input" type="date" data-field="entryDate" value="${leg.entryDate||''}" onchange="updateLeg(${i},'entryDate',this.value)">
-      <input class="leg-input ${leg.entryPrice?'has-val':''}" type="number" data-field="entryPrice" placeholder="入場價" step="0.0001" value="${leg.entryPrice||''}" oninput="updateLeg(${i},'entryPrice',this.value)">
-      <input class="leg-input ${leg.sl?'has-val':''}" type="number" data-field="sl" placeholder="SL" step="0.0001" value="${leg.sl||''}" oninput="updateLeg(${i},'sl',this.value)">
-      <input class="leg-input" type="date" data-field="exitDate" value="${leg.exitDate||''}" onchange="updateLeg(${i},'exitDate',this.value)">
-      <input class="leg-input ${leg.exitPrice?'has-val':''}" type="number" data-field="exitPrice" placeholder="出場價" step="0.0001" value="${leg.exitPrice||''}" oninput="updateLeg(${i},'exitPrice',this.value)">
-      <input class="leg-input" type="number" data-field="size" placeholder="%" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)" title="倉位比重 %">
-      <input class="leg-input" type="number" data-field="risk" placeholder="%" step="0.5" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
-      <div style="font-size:10px;font-family:var(--mono);text-align:center">${rTxt}</div>
-      <button class="btn btn-danger btn-sm" style="padding:2px 6px;font-size:11px" onclick="removeLeg(${i})">✕</button>
-    </div>`;
-  }).join('');
+  c.innerHTML = _legs.map((leg,i) => `
+    <div class="leg-row" id="leg-${i}">
+      <input class="leg-input" type="date" data-idx="${i}" data-field="entryDate" value="${leg.entryDate||''}" onchange="updateLeg(${i},'entryDate',this.value)">
+      <input class="leg-input${leg.entryPrice?' has-val':''}" type="number" data-idx="${i}" data-field="entryPrice" placeholder="入場價" step="0.0001" value="${leg.entryPrice||''}" oninput="updateLeg(${i},'entryPrice',this.value)">
+      <input class="leg-input${leg.sl?' has-val':''}" type="number" data-idx="${i}" data-field="sl" placeholder="SL" step="0.0001" value="${leg.sl||''}" oninput="updateLeg(${i},'sl',this.value)">
+      <input class="leg-input" type="date" data-idx="${i}" data-field="exitDate" value="${leg.exitDate||''}" onchange="updateLeg(${i},'exitDate',this.value)">
+      <input class="leg-input${leg.exitPrice?' has-val':''}" type="number" data-idx="${i}" data-field="exitPrice" placeholder="出場價" step="0.0001" value="${leg.exitPrice||''}" oninput="updateLeg(${i},'exitPrice',this.value)">
+      <input class="leg-input" type="number" data-idx="${i}" data-field="size" placeholder="%" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)">
+      <input class="leg-input" type="number" data-idx="${i}" data-field="risk" placeholder="%" step="0.5" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
+      <div id="leg-r-${i}" style="font-size:10px;font-family:var(--mono);text-align:center">${legRHtml(legR(leg,dir))}</div>
+      <button class="btn btn-danger btn-sm" style="padding:2px 6px;font-size:10px" onclick="removeLeg(${i})">✕</button>
+    </div>`).join('');
+}
+
+// Update only the R cell for one leg — no DOM rebuild
+function refreshLegR(idx){
+  const dir = document.getElementById('m-dir')?.value||'LONG';
+  const el = document.getElementById('leg-r-'+idx);
+  if(el) el.innerHTML = legRHtml(legR(_legs[idx], dir));
 }
 
 function updateLeg(idx, field, val){
   _legs[idx][field] = val;
-  calcLegsSummary(); // also calls renderLegs internally
+  refreshLegR(idx);        // update only this row's R cell
+  calcSummaryOnly();       // update summary bar (no renderLegs)
 }
 
-function calcLegsSummary(){
+// ── Core calculation (no DOM side effects) ──
+function _computeLegs(){
   const dir = document.getElementById('m-dir')?.value||'LONG';
   const legsWithEntry = _legs.filter(l => parseFloat(l.entryPrice));
-  if(!legsWithEntry.length){
-    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{ document.getElementById(id).textContent='—'; });
-    document.getElementById('m-entry').value=0;
-    document.getElementById('m-exit').value=0;
-    document.getElementById('m-risk').value=2;
-    return;
-  }
-
-  // ── Size weights ──
+  if(!legsWithEntry.length) return null;
   const hasSizes = _legs.every(l => parseFloat(l.size) > 0);
   const totalSize = hasSizes ? _legs.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithEntry.length;
   const w = l => hasSizes ? (parseFloat(l.size)||0)/totalSize : 1/legsWithEntry.length;
-
-  // ── Avg Entry ──
   const avgEntry = legsWithEntry.reduce((s,l)=>s+parseFloat(l.entryPrice)*w(l),0);
-
-  // ── Avg Exit (size-weighted, only closed legs) ──
   const legsWithExit = _legs.filter(l=>parseFloat(l.entryPrice)&&parseFloat(l.exitPrice));
   let avgExit = 0;
   if(legsWithExit.length){
     const exitTotalSize = hasSizes ? legsWithExit.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithExit.length;
     avgExit = legsWithExit.reduce((s,l)=>s+parseFloat(l.exitPrice)*(hasSizes?(parseFloat(l.size)||0)/exitTotalSize:1/legsWithExit.length),0);
   }
-
-  // ── Total Risk ──
   const totalRisk = _legs.reduce((s,l)=>s+(parseFloat(l.risk)||0),0);
-
-  // ── Weighted avg R (per-leg R, weighted by size) ──
   const legsWithR = _legs.filter(l=>legR(l,dir)!=null);
   let weightedR = null;
   if(legsWithR.length){
@@ -1982,29 +1981,42 @@ function calcLegsSummary(){
       return s+r*wt;
     },0);
   }
+  return{avgEntry,avgExit,totalRisk,weightedR};
+}
 
-  // ── Update UI ──
+// ── Update summary bar only (called on every keystroke — no renderLegs) ──
+function calcSummaryOnly(){
+  const res = _computeLegs();
+  if(!res){
+    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{ document.getElementById(id).textContent='—'; });
+    document.getElementById('m-entry').value=0;
+    document.getElementById('m-exit').value=0;
+    document.getElementById('m-risk').value=2;
+    return;
+  }
+  const{avgEntry,avgExit,totalRisk,weightedR}=res;
   document.getElementById('sumAvgEntry').textContent = avgEntry.toFixed(4);
   document.getElementById('sumAvgExit').textContent = avgExit ? avgExit.toFixed(4) : '（部分未出場）';
   document.getElementById('sumTotalRisk').textContent = totalRisk ? totalRisk.toFixed(1)+'%' : '—';
   document.getElementById('sumAutoR').textContent = weightedR!=null ? (weightedR>=0?'+':'')+weightedR.toFixed(2)+'R' : '—';
   const hint = document.getElementById('rHint');
   if(hint) hint.style.display = weightedR!=null ? 'none' : '';
-
-  // ── Sync hidden fields ──
   document.getElementById('m-entry').value = avgEntry.toFixed(4);
   document.getElementById('m-exit').value = avgExit ? avgExit.toFixed(4) : 0;
   document.getElementById('m-risk').value = totalRisk||2;
+}
 
-  // Re-render rows to update per-leg R display
+// ── Full recalc + re-render (called after add/remove leg) ──
+function calcLegsSummary(){
+  calcSummaryOnly();
   renderLegs();
 }
 
 function applyAutoR(){
-  const txt = document.getElementById('sumAutoR').textContent;
-  if(txt==='—'){toast('需各腳填入 SL 與出場價才能計算 R','e');return;}
-  const val = parseFloat(txt);
-  if(!isNaN(val)){ document.getElementById('m-r').value=val.toFixed(2); toast('✓ 已套用加權 R: '+val.toFixed(2)+'R'); }
+  const res=_computeLegs();
+  if(!res||res.weightedR==null){toast('需各腳填入 SL 與出場價才能計算 R','e');return;}
+  document.getElementById('m-r').value=res.weightedR.toFixed(2);
+  toast('✓ 已套用加權 R: '+(res.weightedR>=0?'+':'')+res.weightedR.toFixed(2)+'R');
 }
 
 function saveTrade(){
