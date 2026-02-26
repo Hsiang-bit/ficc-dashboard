@@ -188,6 +188,12 @@ select option{background:var(--bg2)}
 .btn-macro{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(219,39,119,.15));border:1px solid rgba(124,58,237,.4);color:var(--pur);font-size:calc(var(--fs) - 1px);padding:5px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--cond);font-weight:700;letter-spacing:.06em;transition:all .15s}
 .btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
 .macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
+.leg-row{display:grid;grid-template-columns:100px 1fr 100px 1fr 60px 60px 28px;gap:4px;align-items:center;margin-bottom:4px}
+.leg-header{display:grid;grid-template-columns:100px 1fr 100px 1fr 60px 60px 28px;gap:4px;margin-bottom:4px;padding:0 2px}
+.leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo)}
+.leg-input{font-size:11px;padding:4px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);width:100%;font-family:var(--mono)}
+.leg-input:focus{border-color:var(--blue);outline:none}
+.leg-input.has-val{border-color:rgba(37,99,235,.35)}
 .macro-in:focus{border-color:var(--pur);outline:none;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
 .macro-section{margin-bottom:16px}
 .macro-section h3{font-family:var(--cond);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pur);border-bottom:1px solid rgba(124,58,237,.2);padding-bottom:4px;margin-bottom:8px}
@@ -913,27 +919,71 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
   <div class="modal">
     <div class="modal-head"><h3 id="modalTitle">交易記錄</h3><span class="modal-close" onclick="closeModal()">✕</span></div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+      <!-- Row 1: basic info -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">
         <div class="fg"><span class="fl">日期</span><input type="date" id="m-date" style="width:100%"></div>
         <div class="fg"><span class="fl">資產</span><select id="m-asset" style="width:100%"><option>BOND</option><option>FX</option><option>GOLD</option><option>OIL</option><option>BTC</option><option>ETH</option></select></div>
         <div class="fg"><span class="fl">方向</span><select id="m-dir" style="width:100%"><option>LONG</option><option>SHORT</option></select></div>
         <div class="fg"><span class="fl">狀態</span><select id="m-status" style="width:100%"><option>OPEN</option><option>CLOSED</option><option>TP HIT</option><option>SL HIT</option></select></div>
-        <div class="fg"><span class="fl">入場價</span><input type="number" id="m-entry" style="width:100%" placeholder="0.0000" step="0.0001"></div>
-        <div class="fg"><span class="fl">出場價</span><input type="number" id="m-exit" style="width:100%" placeholder="0.0000" step="0.0001"></div>
-        <div class="fg"><span class="fl">Risk %</span><input type="number" id="m-risk" style="width:100%" placeholder="2" min="0" max="10" step="0.5"></div>
-        <div class="fg"><span class="fl">R 倍數</span><input type="number" id="m-r" style="width:100%" placeholder="0.0" step="0.1"></div>
+        <div class="fg"><span class="fl">SL 價格</span><input type="number" id="m-sl" style="width:100%" placeholder="Stop Loss" step="0.0001" oninput="calcLegsSummary()"></div>
       </div>
+
+      <!-- Scale-In/Out Legs -->
+      <div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">📊 分批入/出場 Legs</div>
+          <button class="btn btn-g btn-sm" onclick="addLeg()" style="font-size:10px">＋ 新增 Leg</button>
+        </div>
+        <!-- Header row: entryDate | entryPrice | exitDate | exitPrice | size% | risk% | ✕ -->
+        <div class="leg-header">
+          <div>入場日期</div><div>入場價</div><div>出場日期</div><div>出場價</div><div>倉位 %</div><div>Risk %</div><div></div>
+        </div>
+        <div id="legsContainer"></div>
+        <!-- Summary bar -->
+        <div id="legsSummary" style="margin-top:8px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);font-size:10px;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+          <span>均入：<b id="sumAvgEntry" style="color:var(--hi)">—</b></span>
+          <span>均出：<b id="sumAvgExit" style="color:var(--hi)">—</b></span>
+          <span>總 Risk：<b id="sumTotalRisk" style="color:var(--hi)">—</b></span>
+          <span>自動 R：<b id="sumAutoR" style="color:var(--amber)">—</b></span>
+          <span style="margin-left:auto;font-size:9px;color:var(--lo)">SL未設 = 無法算R</span>
+        </div>
+      </div>
+
+      <!-- R 倍數 manual override + hidden fields -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="fg">
+          <span class="fl" style="display:flex;align-items:center;gap:4px">R 倍數
+            <span style="font-family:var(--mono);font-size:9px;color:var(--lo)">(自動/手動)</span>
+          </span>
+          <input type="number" id="m-r" style="width:100%" placeholder="自動計算或手動覆蓋" step="0.1">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-g btn-sm" onclick="applyAutoR()" style="font-size:10px;width:100%">↻ 套用自動 R</button>
+        </div>
+      </div>
+      <!-- hidden legacy compat fields -->
+      <input type="hidden" id="m-entry" value="0">
+      <input type="hidden" id="m-exit" value="0">
+      <input type="hidden" id="m-risk" value="2">
       <div class="fg mb12"><span class="fl">入場理由</span><textarea id="m-reason" style="width:100%;min-height:60px;resize:vertical"></textarea></div>
       <div class="fg mb12"><span class="fl">出場理由</span><textarea id="m-exitr" style="width:100%;min-height:50px;resize:vertical"></textarea></div>
       <div>
-        <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:8px">📊 Chart Images by Timeframe</div>
-        <div class="ctabs">
+        <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:8px">📊 Chart Images</div>
+        <!-- Entry / Exit phase toggle -->
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <button id="phaseBtn-entry" class="btn btn-a btn-sm" style="font-size:10px;letter-spacing:.06em" onclick="switchChartPhase('entry')">📥 Entry</button>
+          <button id="phaseBtn-exit"  class="btn btn-g btn-sm" style="font-size:10px;letter-spacing:.06em" onclick="switchChartPhase('exit')">📤 Exit</button>
+          <span id="phaseLabel" style="font-family:var(--mono);font-size:10px;color:var(--green);margin-left:6px;align-self:center">Entry 圖表</span>
+        </div>
+        <!-- TF tabs -->
+        <div class="ctabs" id="ctabs-header">
           <button class="ctab active" onclick="showCtab('1M',this)">Monthly</button>
           <button class="ctab" onclick="showCtab('W',this)">Weekly</button>
           <button class="ctab" onclick="showCtab('D',this)">Daily</button>
           <button class="ctab" onclick="showCtab('H4',this)">H4</button>
           <button class="ctab" onclick="showCtab('H1',this)">H1</button>
           <button class="ctab" onclick="showCtab('M15',this)">M15</button>
+          <button class="ctab" onclick="showCtab('prop',this)">Prop Firm</button>
         </div>
         <div id="ctabs-container"></div>
       </div>
@@ -952,7 +1002,8 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
 // ════════════════════════════════════
 // DATA & STORAGE
 // ════════════════════════════════════
-const TF = ['1M','W','D','H4','H1','M15'];
+const TF = ['1M','W','D','H4','H1','M15','prop'];
+let currentChartPhase = 'entry'; // 'entry' | 'exit'
 let trades=[], journals={}, settings={}, ganttData={};
 let currentTradeId=null;
 
@@ -1579,19 +1630,22 @@ function renderTrades(){
     const ac=AC[t.asset]||'';
     const dc=t.dir==='LONG'?'dir-l':'dir-s';
     const pd=t.pnl!=null?(t.pnl>=0?`<span class="pnl-p">+${t.pnl.toFixed(2)}R</span>`:`<span class="pnl-n">${t.pnl.toFixed(2)}R</span>`):'—';
-    const cc=t.charts?Object.values(t.charts).filter(Boolean).length:0;
+    const cc=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
+    const entryCount=t.charts?Object.keys(t.charts).filter(k=>k.startsWith('entry_')&&t.charts[k]).length:0;
+    const exitCount=t.charts?Object.keys(t.charts).filter(k=>k.startsWith('exit_')&&t.charts[k]).length:0;
     const synced=t.notionPageId?'<span style="font-size:9px;background:rgba(5,150,105,.1);color:var(--green);border:1px solid rgba(5,150,105,.2);border-radius:2px;padding:1px 4px;margin-left:4px">◩</span>':'';
     return`<tr onclick="openEditModal(${t.id})">
       <td style="color:var(--lo)">${i+1}</td>
       <td>${t.date}</td>
       <td><span class="cl-tag ${ac}">${t.asset}</span></td>
       <td class="${dc}">${t.dir==='LONG'?'⬆ L':'⬇ S'}</td>
-      <td>${t.entry||'—'}</td><td>${t.exit||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${t.entry?t.entry:'—'}${t.legs&&t.legs.length>1?`<span style="font-size:9px;margin-left:3px;background:rgba(37,99,235,.12);color:var(--blue);border:1px solid rgba(37,99,235,.2);border-radius:2px;padding:1px 4px">×${t.legs.length}</span>`:''}</td>
+      <td>${t.exit||'—'}</td>
       <td>${t.risk}%</td><td>${t.r?t.r+'R':'—'}</td>
       <td>${pd}</td>
       <td style="color:${t.status==='OPEN'?'var(--amber)':t.status==='TP HIT'?'var(--green)':t.status==='SL HIT'?'var(--red)':'var(--lo)'}">${t.status}</td>
       <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.reason||'—'}</td>
-      <td style="text-align:center"><span style="font-family:var(--mono);font-size:10px;color:${cc?'var(--cyan)':'var(--lo)'}">${cc?'📊'+cc:'—'}</span></td>
+      <td style="text-align:center"><span style="font-family:var(--mono);font-size:10px;color:${cc?'var(--cyan)':'var(--lo)'}">${entryCount?'📥'+entryCount:''}${exitCount?'📤'+exitCount:''}${!cc?'—':''}</span></td>
       <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();currentTradeId=${t.id};if(confirm('刪除？')){trades=trades.filter(x=>x.id!==${t.id});saveAll();renderTrades();}">✕</button></td>
     </tr>`;
   }).join('');
@@ -1640,8 +1694,9 @@ function openAddModal(){
   document.getElementById('delBtn').style.display='none';
   document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
   ['m-asset','m-dir','m-status'].forEach(id=>document.getElementById(id).selectedIndex=0);
-  ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr'].forEach(id=>document.getElementById(id).value='');
-  buildCtabs(null);document.getElementById('tradeModal').classList.add('open');
+  ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr','m-sl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _legs=[]; renderLegs(); calcLegsSummary();
+  currentChartPhase='entry';switchChartPhase('entry');buildCtabs(null);document.getElementById('tradeModal').classList.add('open');
 }
 function openEditModal(id){
   const t=trades.find(x=>x.id===id);if(!t)return;
@@ -1656,9 +1711,21 @@ function openEditModal(id){
   document.getElementById('m-exit').value=t.exit||'';
   document.getElementById('m-risk').value=t.risk||'';
   document.getElementById('m-r').value=t.r||'';
+  const slEl=document.getElementById('m-sl');if(slEl)slEl.value=t.sl||'';
   document.getElementById('m-reason').value=t.reason||'';
   document.getElementById('m-exitr').value=t.exitr||'';
-  buildCtabs(id);document.getElementById('tradeModal').classList.add('open');
+  // Load legs
+  _legs = t.legs ? JSON.parse(JSON.stringify(t.legs)) : [];
+  // Migrate old format legs {date,price,risk,weight} → new format
+  _legs = _legs.map(l => {
+    if(l.entryPrice !== undefined) return l; // already new format
+    return {entryDate:l.date||'', entryPrice:l.price||'', exitDate:'', exitPrice:'', size:l.weight||'', risk:l.risk||''};
+  });
+  if(!_legs.length && t.entry){
+    _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2)}];
+  }
+  renderLegs(); calcLegsSummary();
+  currentChartPhase='entry';switchChartPhase('entry');document.getElementById('tradeModal').classList.add('open');
 }
 function closeModal(){document.getElementById('tradeModal').classList.remove('open');window._pc={};}
 document.getElementById('tradeModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
@@ -1701,11 +1768,26 @@ document.addEventListener('paste',e=>{
 
   toast('請先切換到要貼圖的時間框架 tab','e');
 });
+function switchChartPhase(phase){
+  currentChartPhase=phase;
+  // Update phase buttons
+  document.getElementById('phaseBtn-entry').className='btn btn-sm '+(phase==='entry'?'btn-a':'btn-g')+' btn-sm';
+  document.getElementById('phaseBtn-exit').className='btn btn-sm '+(phase==='exit'?'btn-a':'btn-g')+' btn-sm';
+  const lbl=document.getElementById('phaseLabel');
+  if(lbl){lbl.textContent=phase==='entry'?'Entry 圖表':'Exit 圖表';lbl.style.color=phase==='entry'?'var(--green)':'var(--amber)';}
+  // Reset to first TF tab
+  document.querySelectorAll('.ctab').forEach((t,i)=>{t.classList.toggle('active',i===0);});
+  // Rebuild panels for new phase
+  buildCtabs(currentTradeId);
+}
+
 function buildCtabs(id){
   const t=id?trades.find(x=>x.id===id):null;
   const imgs=t&&t.charts?t.charts:{};
+  const phase=currentChartPhase;
   document.getElementById('ctabs-container').innerHTML=TF.map((tf,i)=>{
-    const src=imgs[tf]||'';
+    const key=phase+'_'+tf;          // e.g. 'entry_1M', 'exit_W'
+    const src=imgs[key]||'';
     const urlVal=src&&src.startsWith('http')?src:'';
     const imgSrc=src&&!src.startsWith('http')?src:'';
     return`<div class="cpanel ${i===0?'active':''}" id="cpanel-${tf}">
@@ -1725,15 +1807,16 @@ function buildCtabs(id){
            ondrop="handleChartDrop(event,'${tf}','${id||'new'}')">
         <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="uploadChart(event,'${tf}','${id||'new'}')">
         ${urlVal
-          ? `<img class="chart-img" src="${urlVal}" style="pointer-events:none" onerror="this.style.display='none';document.getElementById('url-err-${tf}').style.display='block'">
+          ? `<img class="chart-img" src="${urlVal}" style="pointer-events:none" onerror="this.style.display='none'">
              <div id="url-err-${tf}" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red)">⚠ 無法載入此網址的圖片</div>`
           : imgSrc
             ? `<img class="chart-img" src="${imgSrc}" style="pointer-events:none">`
-            : `<p style="font-size:10px">或拖曳 / 點擊上傳本地圖片</p>`}
+            : `<p style="font-size:10px;color:var(--lo)">${phase==='entry'?'📥':'📤'} 或拖曳 / 點擊上傳本地圖片</p>`}
       </div>
     </div>`;
   }).join('');
 }
+
 function showCtab(tf,btn){
   document.querySelectorAll('.cpanel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
@@ -1741,13 +1824,13 @@ function showCtab(tf,btn){
 }
 function setChartUrl(tf,tradeId,url){
   if(!url)return;
+  const key=currentChartPhase+'_'+tf;
   if(tradeId!=='new'){
     const t=trades.find(x=>x.id==tradeId);
-    if(t){if(!t.charts)t.charts={};t.charts[tf]=url;saveAll();}
+    if(t){if(!t.charts)t.charts={};t.charts[key]=url;saveAll();}
   } else {
-    window._pc=window._pc||{};window._pc[tf]=url;
+    window._pc=window._pc||{};window._pc[key]=url;
   }
-  // Update preview
   const ua=document.getElementById('ua-'+tf);
   if(ua){
     ua.innerHTML=`<img class="chart-img" src="${url}" style="pointer-events:none" onerror="this.style.display='none'">
@@ -1775,29 +1858,172 @@ function loadChartFile(file,tf,tradeId){
 }
 
 function applyChartSrc(src,tf,tradeId){
-  if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t){if(!t.charts)t.charts={};t.charts[tf]=src;saveAll();}}
-  else{window._pc=window._pc||{};window._pc[tf]=src;}
-  // Clear URL input (this is a local file, not a URL)
+  const key=currentChartPhase+'_'+tf;
+  if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t){if(!t.charts)t.charts={};t.charts[key]=src;saveAll();}}
+  else{window._pc=window._pc||{};window._pc[key]=src;}
   const urlInput=document.getElementById('url-'+tf);
   if(urlInput)urlInput.value='';
   const ua=document.getElementById('ua-'+tf);
   ua.innerHTML=`<img class="chart-img" src="${src}" style="pointer-events:none">
     <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="uploadChart(event,'${tf}','${tradeId}')">`;
   ua.classList.remove('drag','paste-ready');
-  toast('✓ '+tf+' 圖表已載入');
+  toast('✓ '+(currentChartPhase==='entry'?'Entry':'Exit')+' '+tf+' 圖表已載入');
 }
 function rmChart(e,tf,tradeId){
   e.stopPropagation();
-  if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t&&t.charts)delete t.charts[tf];saveAll();}
-  else if(window._pc)delete window._pc[tf];
-  document.getElementById('ua-'+tf).innerHTML=`<input type="file" accept="image/*" onchange="uploadChart(event,'${tf}','${tradeId}')"><p>拖曳或點擊上傳 <span>${tf}</span> 圖表</p>`;
+  const key=currentChartPhase+'_'+tf;
+  if(tradeId!=='new'){const t=trades.find(x=>x.id==tradeId);if(t&&t.charts)delete t.charts[key];saveAll();}
+  else if(window._pc)delete window._pc[key];
+  buildCtabs(tradeId!=='new'?tradeId:null);
+  // restore active ctab
+  document.querySelectorAll('.ctab').forEach((t,i)=>{if(t.textContent.includes(tf))t.click();});
 }
+// ── Legs helpers ──
+let _legs = []; // working copy while modal open
+
+function addLeg(leg){
+  _legs.push(leg || {entryDate:'', entryPrice:'', exitDate:'', exitPrice:'', size:'', risk:''});
+  renderLegs();
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#legsContainer .leg-row');
+    const last = rows[rows.length-1];
+    if(last) last.querySelector('input[data-field="entryPrice"]')?.focus();
+  },30);
+}
+
+function removeLeg(idx){
+  _legs.splice(idx,1);
+  renderLegs();
+  calcLegsSummary();
+}
+
+function renderLegs(){
+  const c = document.getElementById('legsContainer');
+  if(!c) return;
+  if(_legs.length === 0){
+    c.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--lo);padding:6px 2px">點「＋ 新增 Leg」加入分批記錄</div>';
+    return;
+  }
+  c.innerHTML = _legs.map((leg,i) => {
+    const hasExit = leg.exitPrice ? 'has-val' : '';
+    return `<div class="leg-row" id="leg-${i}">
+      <input class="leg-input" type="date" data-field="entryDate" value="${leg.entryDate||''}" onchange="updateLeg(${i},'entryDate',this.value)" title="入場日期">
+      <input class="leg-input ${leg.entryPrice?'has-val':''}" type="number" data-field="entryPrice" placeholder="入場價" step="0.0001" value="${leg.entryPrice||''}" oninput="updateLeg(${i},'entryPrice',this.value)">
+      <input class="leg-input" type="date" data-field="exitDate" value="${leg.exitDate||''}" onchange="updateLeg(${i},'exitDate',this.value)" title="出場日期">
+      <input class="leg-input ${hasExit}" type="number" data-field="exitPrice" placeholder="出場價（選填）" step="0.0001" value="${leg.exitPrice||''}" oninput="updateLeg(${i},'exitPrice',this.value)">
+      <input class="leg-input" type="number" data-field="size" placeholder="100" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)" title="倉位比重 %（總和應為100）">
+      <input class="leg-input" type="number" data-field="risk" placeholder="%" step="0.5" min="0" max="20" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
+      <button class="btn btn-danger btn-sm" style="padding:2px 6px;font-size:11px" onclick="removeLeg(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updateLeg(idx, field, val){
+  _legs[idx][field] = val;
+  calcLegsSummary();
+}
+
+function calcLegsSummary(){
+  const legsWithEntry = _legs.filter(l => parseFloat(l.entryPrice));
+  if(!legsWithEntry.length){
+    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{
+      document.getElementById(id).textContent='—';
+    });
+    document.getElementById('m-entry').value=0;
+    document.getElementById('m-exit').value=0;
+    document.getElementById('m-risk').value=2;
+    return;
+  }
+
+  // ── Average Entry (size-weighted if sizes provided, else simple) ──
+  const hasSizes = _legs.every(l => parseFloat(l.size) > 0);
+  const totalSize = hasSizes ? _legs.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithEntry.length;
+  const avgEntry = hasSizes
+    ? _legs.reduce((s,l)=> s + (parseFloat(l.entryPrice)||0) * ((parseFloat(l.size)||0)/totalSize), 0)
+    : legsWithEntry.reduce((s,l)=>s+parseFloat(l.entryPrice),0) / legsWithEntry.length;
+
+  // ── Average Exit (only legs that have exit price) ──
+  const legsWithExit = _legs.filter(l => parseFloat(l.exitPrice));
+  let avgExit = 0;
+  if(legsWithExit.length){
+    const exitTotalSize = hasSizes
+      ? legsWithExit.reduce((s,l)=>s+(parseFloat(l.size)||0),0)
+      : legsWithExit.length;
+    avgExit = hasSizes
+      ? legsWithExit.reduce((s,l)=> s + (parseFloat(l.exitPrice)||0) * ((parseFloat(l.size)||0)/exitTotalSize),0)
+      : legsWithExit.reduce((s,l)=>s+parseFloat(l.exitPrice),0) / legsWithExit.length;
+  }
+
+  // ── Total Risk ──
+  const totalRisk = _legs.reduce((s,l)=>s+(parseFloat(l.risk)||0),0);
+
+  // ── Auto R (needs SL) ──
+  const sl = parseFloat(document.getElementById('m-sl')?.value)||0;
+  const dir = document.getElementById('m-dir')?.value;
+  let autoR = null;
+  if(sl && avgEntry && avgExit){
+    const slDist = Math.abs(avgEntry - sl);
+    if(slDist > 0){
+      autoR = dir==='LONG'
+        ? (avgExit - avgEntry) / slDist
+        : (avgEntry - avgExit) / slDist;
+    }
+  }
+
+  // ── Update UI ──
+  document.getElementById('sumAvgEntry').textContent = avgEntry.toFixed(4);
+  document.getElementById('sumAvgExit').textContent = avgExit ? avgExit.toFixed(4) : '（未出場）';
+  document.getElementById('sumTotalRisk').textContent = totalRisk ? totalRisk.toFixed(1)+'%' : '—';
+  document.getElementById('sumAutoR').textContent = autoR!=null ? autoR.toFixed(2)+'R' : '—';
+  // hide "SL未設" hint if SL present
+  const hint = document.querySelector('#legsSummary span:last-child');
+  if(hint) hint.style.display = sl?'none':'';
+
+  // ── Sync hidden legacy fields ──
+  document.getElementById('m-entry').value = avgEntry.toFixed(4);
+  document.getElementById('m-exit').value = avgExit ? avgExit.toFixed(4) : 0;
+  document.getElementById('m-risk').value = totalRisk || 2;
+}
+
+function applyAutoR(){
+  const autoRText = document.getElementById('sumAutoR').textContent;
+  if(autoRText==='—'){toast('需填入 SL 價格與出場價才能自動計算 R','e');return;}
+  const val = parseFloat(autoRText);
+  if(!isNaN(val)) document.getElementById('m-r').value = val.toFixed(2);
+  toast('✓ 已套用自動 R: '+val.toFixed(2)+'R');
+}
+
 function saveTrade(){
-  const d={date:document.getElementById('m-date').value,asset:document.getElementById('m-asset').value,dir:document.getElementById('m-dir').value,status:document.getElementById('m-status').value,entry:parseFloat(document.getElementById('m-entry').value)||0,exit:parseFloat(document.getElementById('m-exit').value)||0,risk:parseFloat(document.getElementById('m-risk').value)||2,r:parseFloat(document.getElementById('m-r').value)||0,reason:document.getElementById('m-reason').value,exitr:document.getElementById('m-exitr').value};
-  d.pnl=d.status!=='OPEN'?(d.dir==='LONG'?d.r:-d.r):null;
-  if(currentTradeId){const t=trades.find(x=>x.id===currentTradeId);if(t){Object.assign(t,d);if(window._pc&&Object.keys(window._pc).length){if(!t.charts)t.charts={};Object.assign(t.charts,window._pc);}}}
-  else{d.id=Date.now();d.charts=window._pc||{};trades.push(d);}
-  saveAll();renderTrades();updateRisk();closeModal();toast('✓ 交易已儲存');
+  // Compute avg entry / total risk from legs if any
+  const hasLegs = _legs.length > 0;
+  if(hasLegs) calcLegsSummary(); // ensure sync
+
+  const d={
+    date: document.getElementById('m-date').value,
+    asset: document.getElementById('m-asset').value,
+    dir: document.getElementById('m-dir').value,
+    status: document.getElementById('m-status').value,
+    sl: parseFloat(document.getElementById('m-sl')?.value)||0,
+    entry: parseFloat(document.getElementById('m-entry').value)||0,
+    exit: parseFloat(document.getElementById('m-exit').value)||0,
+    risk: parseFloat(document.getElementById('m-risk').value)||2,
+    r: parseFloat(document.getElementById('m-r').value)||0,
+    reason: document.getElementById('m-reason').value,
+    exitr: document.getElementById('m-exitr').value,
+    legs: hasLegs ? JSON.parse(JSON.stringify(_legs)) : undefined,
+  };
+  d.pnl = d.status!=='OPEN' ? d.r : null;
+
+  if(currentTradeId){
+    const t=trades.find(x=>x.id===currentTradeId);
+    if(t){
+      Object.assign(t,d);
+      if(window._pc&&Object.keys(window._pc).length){if(!t.charts)t.charts={};Object.assign(t.charts,window._pc);}
+    }
+  } else {
+    d.id=Date.now(); d.charts=window._pc||{}; trades.push(d);
+  }
+  saveAll(); renderTrades(); updateRisk(); closeModal(); toast('✓ 交易已儲存');
 }
 function deleteTrade(){if(!currentTradeId||!confirm('刪除？'))return;trades=trades.filter(t=>t.id!==currentTradeId);saveAll();renderTrades();updateRisk();closeModal();}
 
@@ -2096,7 +2322,11 @@ function buildTradeProps(t,tDbId){
     'Risk %':{number:t.risk||0},
     'R Multiple':{number:t.r||0},
     'Status':{select:{name:t.status}},
-    'Entry Reason':{rich_text:[{text:{content:t.reason||''}}]},
+    'Entry Reason':{rich_text:[{text:{content:(()=>{
+      if(!t.legs||!t.legs.length)return t.reason||'';
+      const ld=t.legs.map((l,i)=>'Leg'+(i+1)+': 入'+(l.entryPrice||'?')+(l.exitPrice?' 出'+l.exitPrice:' (未出)')+(l.size?' '+l.size+'%':'')+(l.risk?' R'+l.risk+'%':'')).join(' | ');
+      return '[分批'+t.legs.length+'腳 均入:'+t.entry+(t.exit?' 均出:'+t.exit:'')+' Risk:'+t.risk+'%] '+ld+'\n'+(t.reason||'');
+    })()}}]},
   };
   if(t.pnl!=null)props['PnL (R)']={number:t.pnl};
   if(t.entry)props['Entry Price']={number:t.entry};
@@ -2107,36 +2337,31 @@ function buildTradeProps(t,tDbId){
 // ── Append chart image blocks to a Notion page ──
 async function appendChartBlocks(pageId,charts,token){
   if(!charts||!Object.keys(charts).length)return;
-  const TF_ORDER=['1M','W','D','H4','H1','M15'];
+  const TF_ORDER=['1M','W','D','H4','H1','M15','prop'];
   const blocks=[];
-  const TF_LABEL={'1M':'Monthly','W':'Weekly','D':'Daily','H4':'H4','H1':'H1','M15':'M15'};
-  blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
-
-  for(const tf of TF_ORDER){
-    const src=charts[tf];
-    if(!src)continue;
-
-    if(src.startsWith('http')){
-      // Direct URL (TradingView link etc.) — Notion external image
-      blocks.push({object:'block',type:'image',image:{type:'external',external:{url:src}}});
-    } else {
-      // Local base64 — try imgbb if key exists, else skip with note
-      const imgRef=await uploadImageForNotion(src,tf);
-      if(imgRef){
-        blocks.push({object:'block',type:'image',image:imgRef});
+  const TF_LABEL={'1M':'Monthly','W':'Weekly','D':'Daily','H4':'H4','H1':'H1','M15':'M15','prop':'Prop Firm MT5'};
+  async function pushPhaseBlocks(phase, label){
+    const hasAny=TF_ORDER.some(tf=>charts[phase+'_'+tf]);
+    if(!hasAny)return;
+    blocks.push({object:'block',type:'heading_3',heading_3:{rich_text:[{text:{content:label}}]}});
+    for(const tf of TF_ORDER){
+      const key=phase+'_'+tf;
+      const src=charts[key];
+      if(!src)continue;
+      if(src.startsWith('http')){
+        blocks.push({object:'block',type:'image',image:{type:'external',external:{url:src}}});
       } else {
-        blocks.push({object:'block',type:'callout',callout:{
-          icon:{type:'emoji',emoji:'📸'},
-          rich_text:[{text:{content:tf+' — 本地圖片（需設定 imgbb Key 才能上傳）'}}],
-          color:'gray_background'
-        }});
+        const imgRef=await uploadImageForNotion(src,tf);
+        if(imgRef) blocks.push({object:'block',type:'image',image:imgRef});
+        else blocks.push({object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:'📸'},rich_text:[{text:{content:tf+' — 本地圖片（需設定 imgbb Key 才能上傳）'}}],color:'gray_background'}});
       }
+      blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:[{text:{content:TF_LABEL[tf]||tf},annotations:{bold:true,color:'blue'}}]}});
     }
-
-    blocks.push({object:'block',type:'paragraph',paragraph:{
-      rich_text:[{text:{content:TF_LABEL[tf]||tf},annotations:{bold:true,color:'blue'}}]
-    }});
   }
+
+  blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
+  await pushPhaseBlocks('entry','📥 Entry');
+  await pushPhaseBlocks('exit','📤 Exit');
 
   if(blocks.length){
     await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks},token);
