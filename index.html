@@ -185,6 +185,17 @@ select option{background:var(--bg2)}
 .upload-area p span{color:var(--blue)}
 .paste-hint{font-family:var(--mono);font-size:10px;color:var(--lo);margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px}
 .paste-kbd{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;color:var(--mid)}
+.btn-macro{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(219,39,119,.15));border:1px solid rgba(124,58,237,.4);color:var(--pur);font-size:calc(var(--fs) - 1px);padding:5px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--cond);font-weight:700;letter-spacing:.06em;transition:all .15s}
+.btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
+.macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
+.macro-in:focus{border-color:var(--pur);outline:none;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.macro-section{margin-bottom:16px}
+.macro-section h3{font-family:var(--cond);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pur);border-bottom:1px solid rgba(124,58,237,.2);padding-bottom:4px;margin-bottom:8px}
+.macro-section h4{font-family:var(--cond);font-size:11px;font-weight:700;color:var(--hi);margin:8px 0 4px}
+.macro-tag{display:inline-block;padding:1px 7px;border-radius:2px;font-family:var(--mono);font-size:9px;font-weight:700;margin:2px}
+.macro-bull{background:rgba(5,150,105,.12);color:var(--green);border:1px solid rgba(5,150,105,.25)}
+.macro-bear{background:rgba(220,38,38,.1);color:var(--red);border:1px solid rgba(220,38,38,.2)}
+.macro-neu{background:rgba(156,163,175,.1);color:var(--lo);border:1px solid rgba(156,163,175,.2)}
 .chart-img{max-width:100%;border-radius:var(--r);border:1px solid var(--border);display:block;margin-bottom:6px}
 
 /* ── AI COACH ── */
@@ -312,6 +323,7 @@ select option{background:var(--bg2)}
   <button class="ntab" onclick="showPage('gantt',this)"><span class="dot"></span>Weekly Gantt</button>
   <button class="ntab" onclick="showPage('tradelog',this)"><span class="dot"></span>Trade Log</button>
   <button class="ntab" onclick="showPage('coach',this)"><span class="dot" style="background:linear-gradient(to right,#4285f4,#0f9d58)"></span>AI Coach</button>
+  <button class="ntab" onclick="showPage('macro',this)"><span class="dot" style="background:linear-gradient(to right,#7c3aed,#db2777)"></span>Macro</button>
   <button class="ntab" onclick="showPage('news',this);loadNews()"><span class="dot" style="background:var(--blue)"></span>News</button>
   <button class="ntab" onclick="showPage('risk',this)"><span class="dot"></span>Risk</button>
   <button class="ntab" onclick="showPage('settings',this)"><span class="dot"></span>Settings</button>
@@ -600,6 +612,89 @@ select option{background:var(--bg2)}
 </div>
 
 <!-- ═══════ NEWS ═══════ -->
+<div class="page" id="page-macro">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px">
+
+    <!-- LEFT: Input Panel -->
+    <div>
+      <div class="card mb16">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">📊 當前市場數據</div>
+          <button class="btn btn-g btn-sm" onclick="macroSaveInputs()">💾 儲存</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">US 10Y Yield</div><input id="m-10y" class="macro-in" placeholder="4.52%"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">US 2Y Yield</div><input id="m-2y" class="macro-in" placeholder="4.21%"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">Yield Curve (2s10s)</div><input id="m-yc" class="macro-in" placeholder="+31bp Steepening"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">DXY</div><input id="m-dxy" class="macro-in" placeholder="104.2 ↓ Bearish"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">Gold (XAU/USD)</div><input id="m-gold" class="macro-in" placeholder="2650 ↑"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">Oil (WTI)</div><input id="m-oil" class="macro-in" placeholder="72.5 →"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">SPX / Risk Appetite</div><input id="m-spx" class="macro-in" placeholder="5850 Risk-On"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">BTC</div><input id="m-btc" class="macro-in" placeholder="97000 ↑"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">Fed Funds Rate</div><input id="m-ffr" class="macro-in" placeholder="4.25-4.50%"></div>
+          <div><div class="settings-label" style="font-size:10px;margin-bottom:3px">CPI / 通脹預期</div><input id="m-cpi" class="macro-in" placeholder="2.9% yoy ↓"></div>
+          <div style="grid-column:span 2"><div class="settings-label" style="font-size:10px;margin-bottom:3px">重要事件 / 最近新聞</div><input id="m-events" class="macro-in" placeholder="FOMC 3/19, NFP beat +235K, 關稅90天暫緩"></div>
+        </div>
+      </div>
+
+      <div class="card mb16">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">📝 Macro Framework（MD）</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-g btn-sm" onclick="macroResetMd()">重設預設</button>
+            <button class="btn btn-g btn-sm" onclick="macroSaveMd()">💾 儲存</button>
+          </div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-bottom:6px">可自訂你的 Macro Regime 分析框架，AI 會依此分析</div>
+        <textarea id="macroMd" style="width:100%;height:320px;font-family:var(--mono);font-size:10px;line-height:1.7;resize:vertical;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px;color:var(--hi)" spellcheck="false" placeholder="在此貼上你的 Macro Regime MD 框架..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-macro" onclick="macroAnalyze('full')">🧠 完整 Regime 分析</button>
+        <button class="btn btn-macro" onclick="macroAnalyze('signal')">📡 交易信號建議</button>
+        <button class="btn btn-macro" onclick="macroAnalyze('risk')">⚠ 風險評估</button>
+        <button class="btn btn-macro" onclick="macroAnalyze('custom')">💬 自訂問題</button>
+      </div>
+      <textarea id="macroCustomQ" style="width:100%;height:52px;margin-top:8px;font-family:var(--sans);font-size:11px;resize:vertical;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px;color:var(--hi);display:none" placeholder="輸入自訂問題..."></textarea>
+    </div>
+
+    <!-- RIGHT: AI Output -->
+    <div>
+      <div class="card" style="height:calc(100vh - 140px);display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">🤖 Grok Macro Analysis</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="grokModel" style="font-size:10px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--mid)">
+              <option value="grok-3-mini-beta">Grok 3 Mini Beta ⚡</option>
+              <option value="grok-3-beta">Grok 3 Beta 🧠</option>
+              <option value="grok-2-1212">Grok 2 🔥</option>
+            </select>
+            <button class="btn btn-g btn-sm" onclick="macroClear()">清除</button>
+          </div>
+        </div>
+
+        <!-- Regime Summary Bar -->
+        <div id="macroRegimeBar" style="display:none;padding:10px 14px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:12px;font-family:var(--mono);font-size:11px;flex-shrink:0">
+        </div>
+
+        <!-- Output -->
+        <div id="macroOutput" style="flex:1;overflow-y:auto;font-size:calc(var(--fs));line-height:1.8;color:var(--hi)">
+          <div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:20px 0;text-align:center">
+            填入市場數據 → 選擇分析類型 → 點擊按鈕<br><br>
+            需要在 Settings 填入 <span style="color:var(--pur)">Grok API Key</span>（console.x.ai）
+          </div>
+        </div>
+
+        <!-- Chat input -->
+        <div style="display:flex;gap:6px;margin-top:12px;flex-shrink:0;border-top:1px solid var(--border);padding-top:12px">
+          <input id="macroFollowUp" type="text" placeholder="追問 Grok..." style="flex:1;font-size:11px" onkeydown="if(event.key==='Enter')macroChat()">
+          <button class="btn btn-macro btn-sm" onclick="macroChat()">送出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-news">
   <div class="sec"><div class="acc" style="background:var(--blue)"></div><h2>Economic Calendar</h2><div class="sbadge">ForexFactory</div>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
@@ -692,6 +787,17 @@ select option{background:var(--bg2)}
     <div style="padding:8px 12px;background:rgba(66,133,244,.08);border:1px solid rgba(66,133,244,.2);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.7">
       取得免費 Key：<a href="https://aistudio.google.com/app/apikey" target="_blank" class="notion-link">aistudio.google.com/app/apikey</a><br>
       Gemini 1.5 Flash 每日免費 1500 次請求，足夠每日使用。
+    </div>
+  </div>
+  <div class="card mb16" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🧠 Grok API Key（Macro Regime）</div>
+    <div class="settings-row">
+      <div class="settings-label">Grok API Key</div>
+      <input type="password" id="grokKey" placeholder="xai-..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('grokKey')">👁</button>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-top:8px;line-height:1.7">
+      Grok 3 Mini Beta 免費額度充足。取得：<a href="https://console.x.ai" target="_blank" style="color:var(--blue)">console.x.ai</a> → API Keys
     </div>
   </div>
   <div class="card mb16" style="max-width:680px">
@@ -836,6 +942,7 @@ function load(){
   try{ganttData=JSON.parse(localStorage.getItem('ficc_gantt')||'{}');}catch(e){ganttData={};}
   if(settings.notionToken) document.getElementById('notionToken').value=settings.notionToken;
   if(settings.geminiKey) document.getElementById('geminiKey').value=settings.geminiKey;
+  if(settings.grokKey){const el=document.getElementById('grokKey');if(el)el.value=settings.grokKey;}
   if(settings.ghToken){const el=document.getElementById('ghToken');if(el)el.value=settings.ghToken;}
   if(settings.imgbbKey){const el=document.getElementById('imgbbKey');if(el)el.value=settings.imgbbKey;}
   if(settings.ghGistId){
@@ -858,6 +965,7 @@ function saveAll(){
 function saveSettings(){
   settings.notionToken=document.getElementById('notionToken').value;
   settings.geminiKey=document.getElementById('geminiKey').value;
+  const gk=document.getElementById('grokKey');if(gk)settings.grokKey=gk.value;
   const pid=document.getElementById('notionParentId');
   if(pid)settings.notionParentId=pid.value;
   const gh=document.getElementById('ghToken');
@@ -900,6 +1008,7 @@ setInterval(tick,1000);tick();
 // NAV
 // ════════════════════════════════════
 function showPage(id,btn){
+  if(id==='macro')macroInit();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -2417,6 +2526,312 @@ function renderNews(){
     }).join('');
     return`<div class="news-day-label"><span>📅</span>${date} <span style="color:var(--lo);font-weight:400">${dayName}</span><span style="margin-left:auto;font-size:9px;font-weight:400">${events.length} 個事件</span></div>${evHTML}`;
   }).join('');
+}
+
+// ════════════════════════════════════
+// MACRO REGIME TAB
+// ════════════════════════════════════
+const MACRO_MD_KEY='ficc_macro_md';
+const MACRO_INPUTS_KEY='ficc_macro_inputs';
+
+const DEFAULT_MACRO_MD=`# Macro Regime Analysis Framework
+
+## 1. Interest Rate Environment
+- Yield Curve Shape: Steepening / Flattening / Inverted / Bear Steepen / Bull Steepen
+- Real Rates direction (10Y - CPI expectations)
+- Fed stance: Hawkish / Neutral / Dovish
+- Key levels: 2Y, 10Y, 30Y
+
+## 2. USD Regime
+- DXY trend & structure (above/below 200MA)
+- Correlation: DXY ↑ = Risk-Off / EM stress; DXY ↓ = Risk-On / commodity bid
+- Dollar Smile Theory: extreme risk-off OR strong growth → DXY up
+
+## 3. Risk Appetite (Risk-On / Risk-Off)
+- SPX trend, VIX level
+- Credit spreads (HY vs IG)
+- Commodity demand (Oil bid = growth; Gold bid = fear/inflation)
+- Crypto as risk-on barometer
+
+## 4. Inflation Regime
+- CPI trend (above/below 2% target)
+- Breakeven inflation rates
+- Commodity complex direction
+- Wage growth / PCE
+
+## 5. Growth Regime
+- PMI (above/below 50): Manufacturing vs Services
+- Employment data (NFP, Jobless Claims)
+- GDP trajectory
+- Leading indicators (ISM, Conference Board)
+
+## 6. FICC Asset Signal Matrix
+| Regime | Bond | FX (USD) | Gold | Oil | BTC |
+|--------|------|----------|------|-----|-----|
+| Risk-On + Growth | ↓ (sell) | → | → | ↑ | ↑ |
+| Risk-Off + Fear | ↑ (buy) | ↑ | ↑ | ↓ | ↓ |
+| Inflation | ↓ | → | ↑ | ↑ | → |
+| Deflation / Recession | ↑ | ↑ | ↑ | ↓ | ↓ |
+| Stagflation | ↓ | → | ↑ | ↑ | ↓ |
+
+## 7. Intermarket Confirmation Rules
+- Bond leads FX by 1-2 weeks
+- Gold / USD typically inverse (not always)
+- Oil breakout = inflation risk → Bond short
+- BTC follows SPX risk sentiment with amplification
+
+## 8. Regime Change Signals to Watch
+- Yield curve un-inversion
+- Fed pivot language
+- CPI surprise (beat/miss)
+- Credit event / liquidity crisis
+- Geopolitical escalation`;
+
+let macroChatHistory=[];
+
+function macroInit(){
+  const md=localStorage.getItem(MACRO_MD_KEY);
+  document.getElementById('macroMd').value=md||DEFAULT_MACRO_MD;
+  const inputs=JSON.parse(localStorage.getItem(MACRO_INPUTS_KEY)||'{}');
+  ['10y','2y','yc','dxy','gold','oil','spx','btc','ffr','cpi','events'].forEach(k=>{
+    const el=document.getElementById('m-'+k);
+    if(el&&inputs[k])el.value=inputs[k];
+  });
+}
+
+function macroSaveMd(){
+  localStorage.setItem(MACRO_MD_KEY,document.getElementById('macroMd').value);
+  toast('✓ Framework 已儲存');
+}
+
+function macroResetMd(){
+  if(confirm('重設為預設 Framework？'))document.getElementById('macroMd').value=DEFAULT_MACRO_MD;
+}
+
+function macroSaveInputs(){
+  const data={};
+  ['10y','2y','yc','dxy','gold','oil','spx','btc','ffr','cpi','events'].forEach(k=>{
+    const el=document.getElementById('m-'+k);
+    if(el)data[k]=el.value;
+  });
+  localStorage.setItem(MACRO_INPUTS_KEY,JSON.stringify(data));
+  toast('✓ 市場數據已儲存');
+}
+
+function getMacroInputs(){
+  return{
+    '10Y Yield':document.getElementById('m-10y').value,
+    '2Y Yield':document.getElementById('m-2y').value,
+    'Yield Curve':document.getElementById('m-yc').value,
+    'DXY':document.getElementById('m-dxy').value,
+    'Gold':document.getElementById('m-gold').value,
+    'Oil (WTI)':document.getElementById('m-oil').value,
+    'SPX / Risk':document.getElementById('m-spx').value,
+    'BTC':document.getElementById('m-btc').value,
+    'Fed Funds Rate':document.getElementById('m-ffr').value,
+    'CPI':document.getElementById('m-cpi').value,
+    'Events/News':document.getElementById('m-events').value,
+  };
+}
+
+function buildMacroPrompt(type){
+  const inputs=getMacroInputs();
+  const md=document.getElementById('macroMd').value;
+  const dataBlock=Object.entries(inputs).filter(([k,v])=>v).map(([k,v])=>'- '+k+': '+v).join('\n');
+
+
+  const prompts={
+    full:`根據以下當前市場數據和我的 Macro Regime 分析框架，給我一個完整的 Macro Regime 分析報告。
+
+請包含：
+1. 當前 Regime 判斷（Risk-On/Off、Inflation/Deflation、Growth/Recession等）
+2. 每個 FICC 資產的方向判斷（Bond / FX / Gold / Oil / BTC）及信心程度
+3. 關鍵風險因素
+4. Regime 轉變的早期信號
+5. 本週交易重點`,
+
+    signal:`根據當前市場數據，給我具體的 FICC 交易信號：
+- 每個資產（Bond/FX/Gold/Oil/BTC）的方向 LONG/SHORT/NEUTRAL
+- 信號強度（Strong/Medium/Weak）
+- 入場邏輯（1-2句）
+- 需要確認的條件
+- 最大風險點`,
+
+    risk:`分析當前宏觀環境下的主要風險：
+- Tail Risk 尾部風險
+- 相關性崩潰風險（correlation breakdown）
+- 流動性風險
+- 各資產的下行情境
+- 建議的風控調整`,
+
+    custom:document.getElementById('macroCustomQ').value||'請分析當前市場環境'
+  };
+
+  return`你是一個專業的 FICC 宏觀分析師，專精於大類資產輪動和跨資產相關性分析。請用繁體中文回答，分析要具體且有數據支撐。
+
+=== 我的 Macro Regime Framework ===
+${md}
+
+=== 當前市場數據（${new Date().toLocaleDateString('zh-TW')}）===
+${dataBlock||'（未填入數據）'}
+
+=== 分析請求 ===
+${prompts[type]}
+
+請在回答結尾加上一個簡短的「Regime 總結」，格式為：
+**REGIME: [Risk-On/Risk-Off/Stagflation/etc]**
+**主要驅動：[1-2個關鍵因素]**
+**FICC 信號：Bond[方向] FX[方向] Gold[方向] Oil[方向] BTC[方向]**`;
+}
+
+function macroShowCustom(){
+  const q=document.getElementById('macroCustomQ');
+  q.style.display=q.style.display==='none'?'block':'none';
+  if(q.style.display==='block')q.focus();
+}
+
+async function macroAnalyze(type){
+  if(type==='custom'){
+    const q=document.getElementById('macroCustomQ');
+    q.style.display='block';
+    if(!q.value.trim()){q.focus();return;}
+  }
+  macroSaveInputs();
+  const prompt=buildMacroPrompt(type);
+  macroChatHistory=[{role:'user',content:prompt}];
+  await callGrok(macroChatHistory,true);
+}
+
+async function macroChat(){
+  const input=document.getElementById('macroFollowUp');
+  const q=input.value.trim();
+  if(!q)return;
+  input.value='';
+  if(!macroChatHistory.length){toast('請先執行一次分析','e');return;}
+  macroChatHistory.push({role:'user',content:q});
+
+  // Show user message
+  const out=document.getElementById('macroOutput');
+  out.innerHTML+=`<div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.15);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:calc(var(--fs) - 1px);color:var(--mid)">💬 ${q}</div>`;
+  out.scrollTop=out.scrollHeight;
+
+  await callGrok(macroChatHistory,false);
+}
+
+async function callGrok(messages,clearOutput=false){
+  const key=settings.grokKey||document.getElementById('grokKey')?.value?.trim()||'';
+  if(!key){
+    showMacroError('請先在 Settings 填入 Grok API Key（console.x.ai）');
+    return;
+  }
+  const model=document.getElementById('grokModel').value;
+  const out=document.getElementById('macroOutput');
+
+  if(clearOutput){
+    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">⟳ Grok 分析中...</div>';
+  } else {
+    out.innerHTML+='<div id="grok-typing" style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:4px 0">⟳ 思考中...</div>';
+  }
+  out.scrollTop=out.scrollHeight;
+
+  const body=JSON.stringify({
+    model,
+    messages,
+    temperature:0.6,
+    max_tokens:3000,
+    stream:false,
+  });
+
+  // Grok uses OpenAI-compatible API at api.x.ai
+  const GROK_URL='https://api.x.ai/v1/chat/completions';
+  const hdrs={'Content-Type':'application/json','Authorization':'Bearer '+key};
+  const PROXIES=[
+    ()=>fetch(GROK_URL,{method:'POST',headers:hdrs,body,signal:AbortSignal.timeout(30000)}),
+    ()=>fetch('https://corsproxy.io/?'+encodeURIComponent(GROK_URL),{method:'POST',headers:hdrs,body,signal:AbortSignal.timeout(30000)}),
+  ];
+
+  let data=null,lastErr='';
+  for(const makeReq of PROXIES){
+    try{
+      const res=await makeReq();
+      if(res.ok||res.status===400){data=await res.json();break;}
+      lastErr='HTTP '+res.status;
+    }catch(e){lastErr=e.message;continue;}
+  }
+
+  // Remove typing indicator
+  const typing=document.getElementById('grok-typing');
+  if(typing)typing.remove();
+
+  if(!data){showMacroError('連線失敗（'+lastErr+'）— 請確認部署在 GitHub Pages 上');return;}
+  if(data.error){showMacroError('Grok 錯誤：'+(data.error.message||JSON.stringify(data.error)));return;}
+
+  const text=data.choices?.[0]?.message?.content||'（無回應）';
+  // Save assistant response to chat history
+  macroChatHistory.push({role:'assistant',content:text});
+
+  if(clearOutput){
+    out.innerHTML='';
+  }
+  out.innerHTML+=renderMacroOutput(text);
+  out.scrollTop=out.scrollHeight;
+
+  // Extract and show regime bar
+  updateRegimeBar(text);
+}
+
+function renderMacroOutput(text){
+  // Convert markdown to styled HTML
+  let html=text
+    .replace(/\*\*REGIME:\s*(.*?)\*\*/g,'<div style="margin:12px 0 4px;font-family:var(--mono);font-size:11px"><span style="background:rgba(124,58,237,.12);color:var(--pur);border:1px solid rgba(124,58,237,.3);padding:2px 10px;border-radius:2px;font-weight:700">📍 REGIME: $1</span></div>')
+    .replace(/\*\*主要驅動：(.*?)\*\*/g,'<div style="font-family:var(--mono);font-size:10px;color:var(--mid);margin-bottom:2px">🔑 驅動：$1</div>')
+    .replace(/\*\*FICC 信號：(.*?)\*\*/g,(m,p1)=>{
+      const colored=p1.replace(/(LONG)/g,'<span class="macro-tag macro-bull">$1</span>')
+                      .replace(/(SHORT)/g,'<span class="macro-tag macro-bear">$1</span>')
+                      .replace(/(NEUTRAL)/g,'<span class="macro-tag macro-neu">$1</span>');
+      return`<div style="font-family:var(--mono);font-size:10px;margin-top:2px">📡 ${colored}</div>`;
+    })
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/^### (.*?)$/gm,'<h4 style="font-family:var(--cond);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--pur);margin:16px 0 6px;border-bottom:1px solid rgba(124,58,237,.15);padding-bottom:4px">$1</h4>')
+    .replace(/^## (.*?)$/gm,'<h3 style="font-family:var(--cond);font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--hi);margin:20px 0 8px">$1</h3>')
+    .replace(/^# (.*?)$/gm,'<h2 style="font-family:var(--cond);font-size:15px;font-weight:800;color:var(--pur);margin:0 0 12px">$1</h2>')
+    .replace(/^\| (.*) \|$/gm,(m,row)=>{
+      const cells=row.split(' | ').map(c=>`<td style="padding:4px 8px;border:1px solid var(--border)">${c}</td>`).join('');
+      return`<tr>${cells}</tr>`;
+    })
+    .replace(/(<tr>[\s\S]*?<\/tr>\s*)+/g,t=>`<table style="border-collapse:collapse;width:100%;margin:8px 0;font-size:calc(var(--fs) - 1px)">${t}</table>`)
+    .replace(/^- (.*?)$/gm,'<li style="margin-left:16px;margin-bottom:2px">$1</li>')
+    .replace(/(<li[\s\S]*?<\/li>\s*)+/g,l=>`<ul style="margin:6px 0">${l}</ul>`)
+    .replace(/\n\n/g,'<br>')
+    .replace(/\n/g,'<br>');
+  return`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">${html}</div>`;
+}
+
+function updateRegimeBar(text){
+  const bar=document.getElementById('macroRegimeBar');
+  const regimeMatch=text.match(/REGIME:\s*([^\*\n]+)/);
+  const signalMatch=text.match(/FICC \u4fe1\u865f\uff1a([^\*\n]+)/);
+  if(regimeMatch){
+    bar.style.display='block';
+    const r=regimeMatch[1].trim();
+    const isRiskOn=r.includes('Risk-On')||r.includes('Bullish');
+    const isRiskOff=r.includes('Risk-Off')||r.includes('Bearish')||r.includes('Recession');
+    const color=isRiskOn?'rgba(5,150,105,.12)':isRiskOff?'rgba(220,38,38,.08)':'rgba(124,58,237,.08)';
+    const borderColor=isRiskOn?'rgba(5,150,105,.3)':isRiskOff?'rgba(220,38,38,.25)':'rgba(124,58,237,.25)';
+    bar.style.background=color;bar.style.borderColor=borderColor;
+    bar.innerHTML=`<span style="font-weight:700;color:var(--hi)">📍 ${r}</span>${signalMatch?`<span style="margin-left:12px;color:var(--mid);font-size:10px">${signalMatch[1]}</span>`:''}`;
+  }
+}
+
+function showMacroError(msg){
+  document.getElementById('macroOutput').innerHTML=`<div style="padding:12px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--red)">⚠ ${msg}</div>`;
+}
+
+function macroClear(){
+  macroChatHistory=[];
+  document.getElementById('macroOutput').innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:20px 0;text-align:center">已清除</div>';
+  document.getElementById('macroRegimeBar').style.display='none';
 }
 
 // ── Test imgbb upload ──
