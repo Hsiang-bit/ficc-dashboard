@@ -754,6 +754,22 @@ select option{background:var(--bg2)}
     </div>
     <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--lo)" id="gistLastSync"></div>
   </div>
+  <div class="card mb16" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🖼 圖表上傳（imgbb）</div>
+    <div style="padding:8px 12px;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.12);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.9;margin-bottom:10px">
+      Trade Log 圖表透過 <b>imgbb</b> 免費圖床上傳，再由 Notion 抓取顯示。<br>
+      <span style="color:var(--lo)">取得免費 API Key：<a href="https://imgbb.com/signup" target="_blank" style="color:var(--blue)">imgbb.com/signup</a> 註冊後 → API → Add API key</span>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">imgbb API Key</div>
+      <input type="password" id="imgbbKey" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('imgbbKey')">👁</button>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn btn-g btn-sm" onclick="testImgbb()">🧪 測試上傳</button>
+      <span id="imgbbStatus" style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-left:8px"></span>
+    </div>
+  </div>
   <div class="card" style="max-width:680px">
     <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">💾 本地資料管理</div>
     <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-bottom:10px;line-height:1.7">所有資料存於 localStorage。圖片以 base64 儲存，建議定期推送至 Notion 備份。</div>
@@ -821,6 +837,7 @@ function load(){
   if(settings.notionToken) document.getElementById('notionToken').value=settings.notionToken;
   if(settings.geminiKey) document.getElementById('geminiKey').value=settings.geminiKey;
   if(settings.ghToken){const el=document.getElementById('ghToken');if(el)el.value=settings.ghToken;}
+  if(settings.imgbbKey){const el=document.getElementById('imgbbKey');if(el)el.value=settings.imgbbKey;}
   if(settings.ghGistId){
     const el=document.getElementById('ghGistId');if(el)el.value=settings.ghGistId;
     const lnk=document.getElementById('ghGistLink');
@@ -845,6 +862,8 @@ function saveSettings(){
   if(pid)settings.notionParentId=pid.value;
   const gh=document.getElementById('ghToken');
   if(gh)settings.ghToken=gh.value;
+  const ib=document.getElementById('imgbbKey');
+  if(ib)settings.imgbbKey=ib.value;
   saveAll();
 }
 function toggleKeyVis(id){
@@ -1860,55 +1879,55 @@ function loadNotionSettings(){
     }
   }
 }
-// ── Compress image before upload (max 800px wide, JPEG 0.75) ──
-async function compressImage(base64, maxW=1200){
+// ── Compress base64 image (canvas resize → JPEG 0.8, max 1400px) ──
+async function compressImage(base64, maxW=1400){
   return new Promise(resolve=>{
     const img=new Image();
     img.onload=()=>{
-      const ratio=Math.min(1, maxW/img.width);
-      const w=Math.round(img.width*ratio);
-      const h=Math.round(img.height*ratio);
+      const ratio=Math.min(1,maxW/img.width);
+      const w=Math.round(img.width*ratio),h=Math.round(img.height*ratio);
       const cv=document.createElement('canvas');
-      cv.width=w; cv.height=h;
+      cv.width=w;cv.height=h;
       cv.getContext('2d').drawImage(img,0,0,w,h);
-      resolve(cv.toDataURL('image/jpeg',0.75));
+      resolve(cv.toDataURL('image/jpeg',0.8));
     };
-    img.onerror=()=>resolve(base64); // fallback original
+    img.onerror=()=>resolve(base64);
     img.src=base64;
   });
 }
 
-// ── Upload a base64 image to Notion via File Upload API ──
-async function uploadImageToNotion(base64,filename,token){
-  // Compress first
-  const compressed=await compressImage(base64);
-  const arr=compressed.split(',');
-  const mime='image/jpeg';
-  const bstr=atob(arr[1]);
-  const u8=new Uint8Array(bstr.length);
-  for(let i=0;i<bstr.length;i++)u8[i]=bstr.charCodeAt(i);
-  const blob=new Blob([u8],{type:mime});
+// ── Upload image to imgbb, return public URL ──
+// imgbb is a free image host with CORS support — no proxy needed
+async function uploadImageToImgbb(base64){
+  const key=settings.imgbbKey||document.getElementById('imgbbKey')?.value?.trim()||'';
+  if(!key)return null;
 
-  // Check size (Notion limit ~5MB)
-  if(blob.size>4.5*1024*1024){
-    console.warn('[Notion] Image too large after compression:',blob.size,'bytes');
+  const compressed=await compressImage(base64);
+  const pureB64=compressed.split(',')[1]; // strip data:image/jpeg;base64,
+
+  const form=new FormData();
+  form.append('key',key);
+  form.append('image',pureB64);
+
+  try{
+    const r=await fetch('https://api.imgbb.com/1/upload',{method:'POST',body:form});
+    const d=await r.json();
+    if(d.success)return d.data.url; // direct image URL
+    console.warn('[imgbb] upload failed',d);
+    return null;
+  }catch(e){
+    console.warn('[imgbb] error',e);
     return null;
   }
+}
 
-  // Create upload session
-  const{ok:sok,data:sdata}=await notionFetch('POST','/file-uploads',{filename:filename.replace(/\.\w+$/,'.jpg'),content_type:mime},token);
-  if(!sok){console.warn('[Notion] file-upload session failed',sdata);return null;}
-  const uploadUrl=sdata.upload_url;
-  const fileId=sdata.id;
-  if(!uploadUrl||!fileId){console.warn('[Notion] no upload_url/id in response',sdata);return null;}
-
-  // PUT binary to presigned S3 URL
-  try{
-    const fr=await fetch(uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:blob});
-    if(!fr.ok){console.warn('[Notion] S3 PUT failed',fr.status);return null;}
-  }catch(e){console.warn('[Notion] S3 PUT error',e);return null;}
-
-  return fileId;
+// ── Upload image (imgbb preferred, fallback note) ──
+async function uploadImageForNotion(base64, label){
+  const url=await uploadImageToImgbb(base64);
+  if(url)return{type:'external',url};
+  // No key configured — log and skip
+  console.warn('[Charts] No imgbb key, skipping image:',label);
+  return null;
 }
 
 // ── Build Notion page properties for a trade ──
@@ -1934,38 +1953,35 @@ async function appendChartBlocks(pageId,charts,token){
   if(!charts||!Object.keys(charts).length)return;
   const TF_ORDER=['Monthly','Weekly','Daily','H4','H1','M15'];
   const blocks=[];
+  const hasImgbb=!!(settings.imgbbKey||document.getElementById('imgbbKey')?.value?.trim());
 
-  // Heading
   blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
 
   for(const tf of TF_ORDER){
     const src=charts[tf];
     if(!src)continue;
 
-    // Try to upload to Notion Files API
-    const fileId=await uploadImageToNotion(src,tf.toLowerCase()+'.png',token);
+    const imgRef=hasImgbb?await uploadImageForNotion(src,tf):null;
 
-    if(fileId){
-      // Use Notion-hosted file
-      blocks.push({object:'block',type:'image',image:{type:'file_upload',file_upload:{id:fileId}}});
+    if(imgRef){
+      blocks.push({object:'block',type:'image',image:imgRef});
     } else {
-      // Fallback: embed as external URL via data URI won't work in Notion
-      // Instead add a caption block noting the image couldn't upload
+      // No imgbb key: add a callout prompting user to set up
       blocks.push({object:'block',type:'callout',callout:{
-        icon:{type:'emoji',emoji:'⚠️'},
-        rich_text:[{text:{content:tf+' 圖表上傳失敗（圖檔可能太大）'}}],
-        color:'yellow_background'
+        icon:{type:'emoji',emoji:'📸'},
+        rich_text:[{text:{content:tf+' — 圖表已存在本地，需設定 imgbb Key 才能上傳至 Notion（Settings → imgbb API Key）'}}],
+        color:'gray_background'
       }});
     }
 
-    // TF label caption
     blocks.push({object:'block',type:'paragraph',paragraph:{
       rich_text:[{text:{content:tf},annotations:{bold:true,color:'blue'}}]
     }});
   }
 
-  if(!blocks.length)return;
-  await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks},token);
+  if(blocks.length){
+    await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks},token);
+  }
 }
 
 async function pushTradeNotion(){
@@ -2372,6 +2388,25 @@ function renderNews(){
     }).join('');
     return`<div class="news-day-label"><span>📅</span>${date} <span style="color:var(--lo);font-weight:400">${dayName}</span><span style="margin-left:auto;font-size:9px;font-weight:400">${events.length} 個事件</span></div>${evHTML}`;
   }).join('');
+}
+
+// ── Test imgbb upload ──
+async function testImgbb(){
+  const st=document.getElementById('imgbbStatus');
+  st.textContent='⟳ 測試中...';st.style.color='var(--mid)';
+  const key=settings.imgbbKey||document.getElementById('imgbbKey')?.value?.trim()||'';
+  if(!key){st.textContent='⚠ 請填入 imgbb API Key';st.style.color='var(--red)';return;}
+  // Upload a tiny 1x1 red pixel as test
+  const testB64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI6QAAAABJRU5ErkJggg==';
+  const form=new FormData();
+  form.append('key',key);
+  form.append('image',testB64);
+  try{
+    const r=await fetch('https://api.imgbb.com/1/upload',{method:'POST',body:form});
+    const d=await r.json();
+    if(d.success){st.textContent='✓ API Key 有效，圖片上傳正常';st.style.color='var(--green)';}
+    else{st.textContent='⚠ '+(d.error?.message||'Key 無效');st.style.color='var(--red)';}
+  }catch(e){st.textContent='⚠ 連線失敗：'+e.message;st.style.color='var(--red)';}
 }
 
 // ════════════════════════════════════
