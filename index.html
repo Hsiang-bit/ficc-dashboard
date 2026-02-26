@@ -188,8 +188,8 @@ select option{background:var(--bg2)}
 .btn-macro{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(219,39,119,.15));border:1px solid rgba(124,58,237,.4);color:var(--pur);font-size:calc(var(--fs) - 1px);padding:5px 12px;border-radius:var(--r);cursor:pointer;font-family:var(--cond);font-weight:700;letter-spacing:.06em;transition:all .15s}
 .btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
 .macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
-.leg-row{display:grid;grid-template-columns:100px 1fr 100px 1fr 60px 60px 28px;gap:4px;align-items:center;margin-bottom:4px}
-.leg-header{display:grid;grid-template-columns:100px 1fr 100px 1fr 60px 60px 28px;gap:4px;margin-bottom:4px;padding:0 2px}
+.leg-row{display:grid;grid-template-columns:95px 1fr 1fr 95px 1fr 55px 55px 36px 28px;gap:3px;align-items:center;margin-bottom:4px}
+.leg-header{display:grid;grid-template-columns:95px 1fr 1fr 95px 1fr 55px 55px 36px 28px;gap:3px;margin-bottom:4px;padding:0 2px}
 .leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo)}
 .leg-input{font-size:11px;padding:4px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);width:100%;font-family:var(--mono)}
 .leg-input:focus{border-color:var(--blue);outline:none}
@@ -920,12 +920,12 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
     <div class="modal-head"><h3 id="modalTitle">交易記錄</h3><span class="modal-close" onclick="closeModal()">✕</span></div>
     <div class="modal-body">
       <!-- Row 1: basic info -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
         <div class="fg"><span class="fl">日期</span><input type="date" id="m-date" style="width:100%"></div>
         <div class="fg"><span class="fl">資產</span><select id="m-asset" style="width:100%"><option>BOND</option><option>FX</option><option>GOLD</option><option>OIL</option><option>BTC</option><option>ETH</option></select></div>
         <div class="fg"><span class="fl">方向</span><select id="m-dir" style="width:100%"><option>LONG</option><option>SHORT</option></select></div>
         <div class="fg"><span class="fl">狀態</span><select id="m-status" style="width:100%"><option>OPEN</option><option>CLOSED</option><option>TP HIT</option><option>SL HIT</option></select></div>
-        <div class="fg"><span class="fl">SL 價格</span><input type="number" id="m-sl" style="width:100%" placeholder="Stop Loss" step="0.0001" oninput="calcLegsSummary()"></div>
+
       </div>
 
       <!-- Scale-In/Out Legs -->
@@ -944,8 +944,8 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
           <span>均入：<b id="sumAvgEntry" style="color:var(--hi)">—</b></span>
           <span>均出：<b id="sumAvgExit" style="color:var(--hi)">—</b></span>
           <span>總 Risk：<b id="sumTotalRisk" style="color:var(--hi)">—</b></span>
-          <span>自動 R：<b id="sumAutoR" style="color:var(--amber)">—</b></span>
-          <span style="margin-left:auto;font-size:9px;color:var(--lo)">SL未設 = 無法算R</span>
+          <span>加權 R：<b id="sumAutoR" style="color:var(--amber)">—</b></span>
+          <span style="font-size:9px;color:var(--lo)" id="rHint">（需各腳填 SL 與出場價）</span>
         </div>
       </div>
 
@@ -1694,7 +1694,7 @@ function openAddModal(){
   document.getElementById('delBtn').style.display='none';
   document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
   ['m-asset','m-dir','m-status'].forEach(id=>document.getElementById(id).selectedIndex=0);
-  ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr','m-sl'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _legs=[]; renderLegs(); calcLegsSummary();
   currentChartPhase='entry';switchChartPhase('entry');buildCtabs(null);document.getElementById('tradeModal').classList.add('open');
 }
@@ -1711,7 +1711,7 @@ function openEditModal(id){
   document.getElementById('m-exit').value=t.exit||'';
   document.getElementById('m-risk').value=t.risk||'';
   document.getElementById('m-r').value=t.r||'';
-  const slEl=document.getElementById('m-sl');if(slEl)slEl.value=t.sl||'';
+
   document.getElementById('m-reason').value=t.reason||'';
   document.getElementById('m-exitr').value=t.exitr||'';
   // Load legs
@@ -1719,10 +1719,10 @@ function openEditModal(id){
   // Migrate old format legs {date,price,risk,weight} → new format
   _legs = _legs.map(l => {
     if(l.entryPrice !== undefined) return l; // already new format
-    return {entryDate:l.date||'', entryPrice:l.price||'', exitDate:'', exitPrice:'', size:l.weight||'', risk:l.risk||''};
+    return {entryDate:l.date||'', entryPrice:l.price||'', sl:'', exitDate:'', exitPrice:'', size:l.weight||'', risk:l.risk||''};
   });
   if(!_legs.length && t.entry){
-    _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2)}];
+    _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), sl:t.sl?String(t.sl):'', exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2)}];
   }
   renderLegs(); calcLegsSummary();
   currentChartPhase='entry';switchChartPhase('entry');document.getElementById('tradeModal').classList.add('open');
@@ -1897,6 +1897,15 @@ function removeLeg(idx){
   calcLegsSummary();
 }
 
+function legR(leg, dir){
+  // Calculate R for a single leg
+  const entry=parseFloat(leg.entryPrice), sl=parseFloat(leg.sl), exit=parseFloat(leg.exitPrice);
+  if(!entry||!sl||!exit) return null;
+  const slDist=Math.abs(entry-sl);
+  if(slDist===0) return null;
+  return dir==='LONG' ? (exit-entry)/slDist : (entry-exit)/slDist;
+}
+
 function renderLegs(){
   const c = document.getElementById('legsContainer');
   if(!c) return;
@@ -1904,15 +1913,19 @@ function renderLegs(){
     c.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--lo);padding:6px 2px">點「＋ 新增 Leg」加入分批記錄</div>';
     return;
   }
+  const dir = document.getElementById('m-dir')?.value||'LONG';
   c.innerHTML = _legs.map((leg,i) => {
-    const hasExit = leg.exitPrice ? 'has-val' : '';
+    const r = legR(leg, dir);
+    const rTxt = r!=null ? (r>=0?'<span style="color:var(--green)">+'+r.toFixed(2)+'R</span>':'<span style="color:var(--red)">'+r.toFixed(2)+'R</span>') : '<span style="color:var(--lo)">—</span>';
     return `<div class="leg-row" id="leg-${i}">
-      <input class="leg-input" type="date" data-field="entryDate" value="${leg.entryDate||''}" onchange="updateLeg(${i},'entryDate',this.value)" title="入場日期">
+      <input class="leg-input" type="date" data-field="entryDate" value="${leg.entryDate||''}" onchange="updateLeg(${i},'entryDate',this.value)">
       <input class="leg-input ${leg.entryPrice?'has-val':''}" type="number" data-field="entryPrice" placeholder="入場價" step="0.0001" value="${leg.entryPrice||''}" oninput="updateLeg(${i},'entryPrice',this.value)">
-      <input class="leg-input" type="date" data-field="exitDate" value="${leg.exitDate||''}" onchange="updateLeg(${i},'exitDate',this.value)" title="出場日期">
-      <input class="leg-input ${hasExit}" type="number" data-field="exitPrice" placeholder="出場價（選填）" step="0.0001" value="${leg.exitPrice||''}" oninput="updateLeg(${i},'exitPrice',this.value)">
-      <input class="leg-input" type="number" data-field="size" placeholder="100" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)" title="倉位比重 %（總和應為100）">
-      <input class="leg-input" type="number" data-field="risk" placeholder="%" step="0.5" min="0" max="20" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
+      <input class="leg-input ${leg.sl?'has-val':''}" type="number" data-field="sl" placeholder="SL" step="0.0001" value="${leg.sl||''}" oninput="updateLeg(${i},'sl',this.value)">
+      <input class="leg-input" type="date" data-field="exitDate" value="${leg.exitDate||''}" onchange="updateLeg(${i},'exitDate',this.value)">
+      <input class="leg-input ${leg.exitPrice?'has-val':''}" type="number" data-field="exitPrice" placeholder="出場價" step="0.0001" value="${leg.exitPrice||''}" oninput="updateLeg(${i},'exitPrice',this.value)">
+      <input class="leg-input" type="number" data-field="size" placeholder="%" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)" title="倉位比重 %">
+      <input class="leg-input" type="number" data-field="risk" placeholder="%" step="0.5" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
+      <div style="font-size:10px;font-family:var(--mono);text-align:center">${rTxt}</div>
       <button class="btn btn-danger btn-sm" style="padding:2px 6px;font-size:11px" onclick="removeLeg(${i})">✕</button>
     </div>`;
   }).join('');
@@ -1920,77 +1933,72 @@ function renderLegs(){
 
 function updateLeg(idx, field, val){
   _legs[idx][field] = val;
-  calcLegsSummary();
+  calcLegsSummary(); // also calls renderLegs internally
 }
 
 function calcLegsSummary(){
+  const dir = document.getElementById('m-dir')?.value||'LONG';
   const legsWithEntry = _legs.filter(l => parseFloat(l.entryPrice));
   if(!legsWithEntry.length){
-    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{
-      document.getElementById(id).textContent='—';
-    });
+    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{ document.getElementById(id).textContent='—'; });
     document.getElementById('m-entry').value=0;
     document.getElementById('m-exit').value=0;
     document.getElementById('m-risk').value=2;
     return;
   }
 
-  // ── Average Entry (size-weighted if sizes provided, else simple) ──
+  // ── Size weights ──
   const hasSizes = _legs.every(l => parseFloat(l.size) > 0);
   const totalSize = hasSizes ? _legs.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithEntry.length;
-  const avgEntry = hasSizes
-    ? _legs.reduce((s,l)=> s + (parseFloat(l.entryPrice)||0) * ((parseFloat(l.size)||0)/totalSize), 0)
-    : legsWithEntry.reduce((s,l)=>s+parseFloat(l.entryPrice),0) / legsWithEntry.length;
+  const w = l => hasSizes ? (parseFloat(l.size)||0)/totalSize : 1/legsWithEntry.length;
 
-  // ── Average Exit (only legs that have exit price) ──
-  const legsWithExit = _legs.filter(l => parseFloat(l.exitPrice));
+  // ── Avg Entry ──
+  const avgEntry = legsWithEntry.reduce((s,l)=>s+parseFloat(l.entryPrice)*w(l),0);
+
+  // ── Avg Exit (size-weighted, only closed legs) ──
+  const legsWithExit = _legs.filter(l=>parseFloat(l.entryPrice)&&parseFloat(l.exitPrice));
   let avgExit = 0;
   if(legsWithExit.length){
-    const exitTotalSize = hasSizes
-      ? legsWithExit.reduce((s,l)=>s+(parseFloat(l.size)||0),0)
-      : legsWithExit.length;
-    avgExit = hasSizes
-      ? legsWithExit.reduce((s,l)=> s + (parseFloat(l.exitPrice)||0) * ((parseFloat(l.size)||0)/exitTotalSize),0)
-      : legsWithExit.reduce((s,l)=>s+parseFloat(l.exitPrice),0) / legsWithExit.length;
+    const exitTotalSize = hasSizes ? legsWithExit.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithExit.length;
+    avgExit = legsWithExit.reduce((s,l)=>s+parseFloat(l.exitPrice)*(hasSizes?(parseFloat(l.size)||0)/exitTotalSize:1/legsWithExit.length),0);
   }
 
   // ── Total Risk ──
   const totalRisk = _legs.reduce((s,l)=>s+(parseFloat(l.risk)||0),0);
 
-  // ── Auto R (needs SL) ──
-  const sl = parseFloat(document.getElementById('m-sl')?.value)||0;
-  const dir = document.getElementById('m-dir')?.value;
-  let autoR = null;
-  if(sl && avgEntry && avgExit){
-    const slDist = Math.abs(avgEntry - sl);
-    if(slDist > 0){
-      autoR = dir==='LONG'
-        ? (avgExit - avgEntry) / slDist
-        : (avgEntry - avgExit) / slDist;
-    }
+  // ── Weighted avg R (per-leg R, weighted by size) ──
+  const legsWithR = _legs.filter(l=>legR(l,dir)!=null);
+  let weightedR = null;
+  if(legsWithR.length){
+    const rTotalSize = hasSizes ? legsWithR.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithR.length;
+    weightedR = legsWithR.reduce((s,l)=>{
+      const r=legR(l,dir), wt=hasSizes?(parseFloat(l.size)||0)/rTotalSize:1/legsWithR.length;
+      return s+r*wt;
+    },0);
   }
 
   // ── Update UI ──
   document.getElementById('sumAvgEntry').textContent = avgEntry.toFixed(4);
-  document.getElementById('sumAvgExit').textContent = avgExit ? avgExit.toFixed(4) : '（未出場）';
+  document.getElementById('sumAvgExit').textContent = avgExit ? avgExit.toFixed(4) : '（部分未出場）';
   document.getElementById('sumTotalRisk').textContent = totalRisk ? totalRisk.toFixed(1)+'%' : '—';
-  document.getElementById('sumAutoR').textContent = autoR!=null ? autoR.toFixed(2)+'R' : '—';
-  // hide "SL未設" hint if SL present
-  const hint = document.querySelector('#legsSummary span:last-child');
-  if(hint) hint.style.display = sl?'none':'';
+  document.getElementById('sumAutoR').textContent = weightedR!=null ? (weightedR>=0?'+':'')+weightedR.toFixed(2)+'R' : '—';
+  const hint = document.getElementById('rHint');
+  if(hint) hint.style.display = weightedR!=null ? 'none' : '';
 
-  // ── Sync hidden legacy fields ──
+  // ── Sync hidden fields ──
   document.getElementById('m-entry').value = avgEntry.toFixed(4);
   document.getElementById('m-exit').value = avgExit ? avgExit.toFixed(4) : 0;
-  document.getElementById('m-risk').value = totalRisk || 2;
+  document.getElementById('m-risk').value = totalRisk||2;
+
+  // Re-render rows to update per-leg R display
+  renderLegs();
 }
 
 function applyAutoR(){
-  const autoRText = document.getElementById('sumAutoR').textContent;
-  if(autoRText==='—'){toast('需填入 SL 價格與出場價才能自動計算 R','e');return;}
-  const val = parseFloat(autoRText);
-  if(!isNaN(val)) document.getElementById('m-r').value = val.toFixed(2);
-  toast('✓ 已套用自動 R: '+val.toFixed(2)+'R');
+  const txt = document.getElementById('sumAutoR').textContent;
+  if(txt==='—'){toast('需各腳填入 SL 與出場價才能計算 R','e');return;}
+  const val = parseFloat(txt);
+  if(!isNaN(val)){ document.getElementById('m-r').value=val.toFixed(2); toast('✓ 已套用加權 R: '+val.toFixed(2)+'R'); }
 }
 
 function saveTrade(){
@@ -2003,7 +2011,6 @@ function saveTrade(){
     asset: document.getElementById('m-asset').value,
     dir: document.getElementById('m-dir').value,
     status: document.getElementById('m-status').value,
-    sl: parseFloat(document.getElementById('m-sl')?.value)||0,
     entry: parseFloat(document.getElementById('m-entry').value)||0,
     exit: parseFloat(document.getElementById('m-exit').value)||0,
     risk: parseFloat(document.getElementById('m-risk').value)||2,
@@ -2324,7 +2331,7 @@ function buildTradeProps(t,tDbId){
     'Status':{select:{name:t.status}},
     'Entry Reason':{rich_text:[{text:{content:(()=>{
       if(!t.legs||!t.legs.length)return t.reason||'';
-      const ld=t.legs.map((l,i)=>'Leg'+(i+1)+': 入'+(l.entryPrice||'?')+(l.exitPrice?' 出'+l.exitPrice:' (未出)')+(l.size?' '+l.size+'%':'')+(l.risk?' R'+l.risk+'%':'')).join(' | ');
+      const ld=t.legs.map((l,i)=>'Leg'+(i+1)+': 入'+(l.entryPrice||'?')+(l.sl?' SL'+l.sl:'')+(l.exitPrice?' 出'+l.exitPrice:' (未出)')+(l.size?' '+l.size+'%':'')+(l.risk?' R'+l.risk+'%':'')).join(' | ');
       return '[分批'+t.legs.length+'腳 均入:'+t.entry+(t.exit?' 均出:'+t.exit:'')+' Risk:'+t.risk+'%] '+ld+'\n'+(t.reason||'');
     })()}}]},
   };
