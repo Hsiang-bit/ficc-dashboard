@@ -730,9 +730,33 @@ select option{background:var(--bg2)}
       </div>
     </div>
   </div>
+  <div class="card mb16" style="max-width:680px">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">☁️ GitHub Gist 雲端同步</div>
+    <div style="padding:8px 12px;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.12);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.9;margin-bottom:12px">
+      將 Checklist 結構、Gantt 任務、Settings 存到 <b>私人 GitHub Gist</b>，換裝置/換瀏覽器自動恢復。<br>
+      <span style="color:var(--lo)">取得 Token：github.com → Settings → Developer settings → Personal access tokens → New token → 勾選 <b>gist</b> 權限</span>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">GitHub Token</div>
+      <input type="password" id="ghToken" placeholder="ghp_..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('ghToken')">👁</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Gist ID</div>
+      <input type="text" id="ghGistId" placeholder="自動建立（留空即可）" oninput="saveSettings()" style="flex:1;font-size:10px;color:var(--lo)" readonly>
+      <a id="ghGistLink" href="#" target="_blank" style="font-size:10px;color:var(--blue);white-space:nowrap;display:none">開啟 →</a>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+      <button class="btn btn-a btn-sm" onclick="gistPush()">☁️ 上傳到 Gist</button>
+      <button class="btn btn-g btn-sm" onclick="gistPull()">⬇️ 從 Gist 還原</button>
+      <button class="btn btn-g btn-sm" onclick="gistAutoSync(true)">🔄 自動同步</button>
+      <span id="gistStatus" style="font-family:var(--mono);font-size:10px;color:var(--lo)"></span>
+    </div>
+    <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--lo)" id="gistLastSync"></div>
+  </div>
   <div class="card" style="max-width:680px">
     <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">💾 本地資料管理</div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-bottom:10px;line-height:1.7">所有資料存於 localStorage（ficc_trades / ficc_journals / ficc_settings）。圖片以 base64 儲存，建議定期匯出備份。</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-bottom:10px;line-height:1.7">所有資料存於 localStorage。圖片以 base64 儲存，建議定期推送至 Notion 備份。</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="exportData()">📤 匯出 JSON</button>
       <button class="btn btn-g btn-sm" onclick="importData()">📥 匯入 JSON</button>
@@ -796,6 +820,16 @@ function load(){
   try{ganttData=JSON.parse(localStorage.getItem('ficc_gantt')||'{}');}catch(e){ganttData={};}
   if(settings.notionToken) document.getElementById('notionToken').value=settings.notionToken;
   if(settings.geminiKey) document.getElementById('geminiKey').value=settings.geminiKey;
+  if(settings.ghToken){const el=document.getElementById('ghToken');if(el)el.value=settings.ghToken;}
+  if(settings.ghGistId){
+    const el=document.getElementById('ghGistId');if(el)el.value=settings.ghGistId;
+    const lnk=document.getElementById('ghGistLink');
+    if(lnk){lnk.href='https://gist.github.com/'+settings.ghGistId;lnk.style.display='';}
+  }
+  if(settings.gistLastSync){
+    const el=document.getElementById('gistLastSync');
+    if(el)el.textContent='上次同步：'+new Date(settings.gistLastSync).toLocaleString('zh-TW');
+  }
   if(settings.fomcDate){document.getElementById('fomcDate').value=settings.fomcDate;document.getElementById('fomcDisp').textContent=settings.fomcDate;}
 }
 function saveAll(){
@@ -809,6 +843,8 @@ function saveSettings(){
   settings.geminiKey=document.getElementById('geminiKey').value;
   const pid=document.getElementById('notionParentId');
   if(pid)settings.notionParentId=pid.value;
+  const gh=document.getElementById('ghToken');
+  if(gh)settings.ghToken=gh.value;
   saveAll();
 }
 function toggleKeyVis(id){
@@ -2339,6 +2375,157 @@ function renderNews(){
 }
 
 // ════════════════════════════════════
+// GITHUB GIST SYNC
+// ════════════════════════════════════
+const GIST_FILENAME = 'ficc_pro_settings.json';
+
+// What to sync: settings/structure only, NOT trade data or journal entries
+// (those go to Notion; trade images are too large for Gist)
+function getGistPayload(){
+  return{
+    _version: 3,
+    _savedAt: new Date().toISOString(),
+    settings: {
+      // Include everything EXCEPT sensitive tokens and large data
+      ...settings,
+      notionToken: undefined,  // don't sync tokens to Gist (it's semi-public)
+      geminiKey: undefined,
+      ghToken: undefined,
+    },
+    checklist: JSON.parse(localStorage.getItem('ficc_checklist')||'null'),
+    gantt:     JSON.parse(localStorage.getItem('ficc_gantt')||'null'),
+    fomc:      settings.fomcDate||null,
+  };
+}
+
+async function gistFetch(method, path, body, token){
+  const t=token||settings.ghToken||document.getElementById('ghToken')?.value?.trim()||'';
+  if(!t)return{ok:false,data:{message:'未填入 GitHub Token'}};
+  try{
+    const opts={method,headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}};
+    if(body)opts.body=JSON.stringify(body);
+    const r=await fetch('https://api.github.com'+path,opts);
+    const data=await r.json();
+    return{ok:r.ok,data};
+  }catch(e){return{ok:false,data:{message:e.message}};}
+}
+
+async function gistPush(){
+  const st=document.getElementById('gistStatus');
+  st.textContent='⟳ 上傳中...';st.style.color='var(--mid)';
+  const payload=getGistPayload();
+  const token=settings.ghToken||document.getElementById('ghToken')?.value?.trim()||'';
+  if(!token){st.textContent='⚠ 請填入 GitHub Token';st.style.color='var(--red)';return;}
+
+  let gistId=settings.ghGistId;
+  let ok, data;
+
+  if(gistId){
+    // Update existing Gist
+    ({ok,data}=await gistFetch('PATCH','/gists/'+gistId,{
+      description:'FICC PRO v3 — Settings Backup',
+      files:{[GIST_FILENAME]:{content:JSON.stringify(payload,null,2)}}
+    }));
+    if(!ok&&data.message?.includes('Not Found')){
+      // Gist was deleted, create new one
+      gistId=null;
+    }
+  }
+
+  if(!gistId){
+    // Create new private Gist
+    ({ok,data}=await gistFetch('POST','/gists',{
+      description:'FICC PRO v3 — Settings Backup',
+      public:false,
+      files:{[GIST_FILENAME]:{content:JSON.stringify(payload,null,2)}}
+    }));
+    if(ok){
+      gistId=data.id;
+      settings.ghGistId=gistId;
+      const el=document.getElementById('ghGistId');if(el)el.value=gistId;
+      const lnk=document.getElementById('ghGistLink');
+      if(lnk){lnk.href='https://gist.github.com/'+gistId;lnk.style.display='';}
+    }
+  }
+
+  if(!ok){st.textContent='⚠ '+( data.message||'失敗');st.style.color='var(--red)';return;}
+
+  settings.gistLastSync=new Date().toISOString();
+  saveAll();
+  st.textContent='✓ 已上傳';st.style.color='var(--green)';
+  const ls=document.getElementById('gistLastSync');
+  if(ls)ls.textContent='上次同步：'+new Date().toLocaleString('zh-TW');
+  toast('✓ 設定已備份到 GitHub Gist');
+}
+
+async function gistPull(){
+  const st=document.getElementById('gistStatus');
+  st.textContent='⟳ 下載中...';st.style.color='var(--mid)';
+  const gistId=settings.ghGistId||document.getElementById('ghGistId')?.value?.trim();
+  if(!gistId){st.textContent='⚠ 尚無 Gist ID，請先上傳';st.style.color='var(--amber)';return;}
+
+  const{ok,data}=await gistFetch('GET','/gists/'+gistId);
+  if(!ok){st.textContent='⚠ '+(data.message||'無法讀取');st.style.color='var(--red)';return;}
+
+  const fileContent=data.files?.[GIST_FILENAME]?.content;
+  if(!fileContent){st.textContent='⚠ Gist 中找不到設定檔';st.style.color='var(--red)';return;}
+
+  let payload;
+  try{payload=JSON.parse(fileContent);}
+  catch(e){st.textContent='⚠ JSON 解析失敗';st.style.color='var(--red)';return;}
+
+  if(!confirm('從 Gist 還原設定（'+new Date(payload._savedAt).toLocaleString('zh-TW')+'）？
+
+會覆蓋現有的 Checklist 結構、Gantt 任務、介面設定。
+交易記錄和日誌不受影響。'))return;
+
+  // Restore settings (but keep current tokens)
+  const keepTokens={notionToken:settings.notionToken,geminiKey:settings.geminiKey,ghToken:settings.ghToken};
+  if(payload.settings)Object.assign(settings,{...payload.settings,...keepTokens,ghGistId:gistId});
+
+  // Restore checklist structure
+  if(payload.checklist)localStorage.setItem('ficc_checklist',JSON.stringify(payload.checklist));
+
+  // Restore gantt
+  if(payload.gantt){ganttData=payload.gantt;localStorage.setItem('ficc_gantt',JSON.stringify(ganttData));}
+
+  // Restore FOMC
+  if(payload.fomc){settings.fomcDate=payload.fomc;const fd=document.getElementById('fomcDate');if(fd)fd.value=payload.fomc;setFOMC(payload.fomc);}
+
+  settings.gistLastSync=new Date().toISOString();
+  saveAll();
+
+  // Re-apply UI settings
+  loadUISettings();
+  renderChecklist();
+  renderGantt();
+
+  st.textContent='✓ 已還原';st.style.color='var(--green)';
+  const ls=document.getElementById('gistLastSync');
+  if(ls)ls.textContent='上次同步：'+new Date(payload._savedAt).toLocaleString('zh-TW');
+  toast('✓ 設定已從 Gist 還原');
+}
+
+let _gistAutoTimer=null;
+function gistAutoSync(manual=false){
+  if(_gistAutoTimer){
+    clearInterval(_gistAutoTimer);_gistAutoTimer=null;
+    const st=document.getElementById('gistStatus');
+    if(st&&!manual){st.textContent='自動同步已關閉';return;}
+  }
+  // Auto-push every 10 minutes if token exists
+  _gistAutoTimer=setInterval(()=>{
+    if(settings.ghToken||document.getElementById('ghToken')?.value?.trim())gistPush();
+  },10*60*1000);
+  if(manual){gistPush();toast('✓ 自動同步已開啟（每10分鐘）');}
+}
+
+// Auto-start gist sync if token+gistId exist
+function initGistSync(){
+  if(settings.ghToken&&settings.ghGistId)gistAutoSync();
+}
+
+// ════════════════════════════════════
 // TOAST
 // ════════════════════════════════════
 function toast(msg,type='ok'){
@@ -2400,6 +2587,7 @@ renderGantt();
 updateRisk();
 loadUISettings();
 loadNotionSettings();
+initGistSync();
 </script>
 </body>
 </html>
