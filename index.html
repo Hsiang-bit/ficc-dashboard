@@ -2474,10 +2474,10 @@ async function gistPull(){
   try{payload=JSON.parse(fileContent);}
   catch(e){st.textContent='⚠ JSON 解析失敗';st.style.color='var(--red)';return;}
 
-  if(!confirm('從 Gist 還原設定（'+new Date(payload._savedAt).toLocaleString('zh-TW')+'）？
+  const _st=new Date(payload._savedAt).toLocaleString('zh-TW');
+  if(!confirm('從 Gist 還原設定 ('+_st+')?\n\n會覆蓋現有的 Checklist / Gantt / 介面設定，交易記錄不受影響。'))return;
 
-會覆蓋現有的 Checklist 結構、Gantt 任務、介面設定。
-交易記錄和日誌不受影響。'))return;
+
 
   // Restore settings (but keep current tokens)
   const keepTokens={notionToken:settings.notionToken,geminiKey:settings.geminiKey,ghToken:settings.ghToken};
