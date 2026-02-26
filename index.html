@@ -662,12 +662,12 @@ select option{background:var(--bg2)}
     <div>
       <div class="card" style="height:calc(100vh - 140px);display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
-          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">🤖 Grok Macro Analysis</div>
+          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">🤖 Gemini Macro Analysis</div>
           <div style="display:flex;gap:6px;align-items:center">
             <select id="grokModel" style="font-size:10px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--mid)">
-              <option value="grok-3-mini-beta">Grok 3 Mini Beta ⚡</option>
-              <option value="grok-3-beta">Grok 3 Beta 🧠</option>
-              <option value="grok-2-1212">Grok 2 🔥</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash 🔥（推薦）</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash ⚡</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro 🧠（最嚴謹）</option>
             </select>
             <button class="btn btn-g btn-sm" onclick="macroClear()">清除</button>
           </div>
@@ -681,7 +681,7 @@ select option{background:var(--bg2)}
         <div id="macroOutput" style="flex:1;overflow-y:auto;font-size:calc(var(--fs));line-height:1.8;color:var(--hi)">
           <div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:20px 0;text-align:center">
             填入市場數據 → 選擇分析類型 → 點擊按鈕<br><br>
-            需要在 Settings 填入 <span style="color:var(--pur)">Grok API Key</span>（console.x.ai）
+            需要在 Settings 填入 <span style="color:var(--pur)">Gemini API Key</span>（aistudio.google.com）
           </div>
         </div>
 
@@ -790,7 +790,7 @@ select option{background:var(--bg2)}
     </div>
   </div>
   <div class="card mb16" style="max-width:680px">
-    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🧠 Grok API Key（Macro Regime）</div>
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🧠 Grok API Key（未使用，Macro 改用 Gemini Key）</div>
     <div class="settings-row">
       <div class="settings-label">Grok API Key</div>
       <input type="password" id="grokKey" placeholder="xai-..." oninput="saveSettings()" style="flex:1;font-size:10px">
@@ -2667,7 +2667,15 @@ function buildMacroPrompt(type){
     custom:document.getElementById('macroCustomQ').value||'請分析當前市場環境'
   };
 
-  return`你是一個專業的 FICC 宏觀分析師，專精於大類資產輪動和跨資產相關性分析。請用繁體中文回答，分析要具體且有數據支撐。
+  return`你是一個專業的 FICC 宏觀分析師。
+
+【嚴格規則，必須遵守】
+1. 每一個結論都必須引用具體數字。禁止說「市場偏強」，要說「DXY 104.2，位於200MA之上，因此…」
+2. 如果輸入數據不足以支撐某個結論，必須明確說「數據不足，無法判斷」，不要猜測或推斷
+3. 禁止使用：可能、或許、也許、預計、似乎、感覺、傾向於。只陳述數據所支持的事實
+4. 對每個資產方向給出信心程度：High（數據明確）/ Medium（部分支撐）/ Low（數據不足）
+5. 不要給出「保持觀望」「謹慎操作」等廢話建議，每個資產必須給出明確方向或「數據不足」
+6. 請用繁體中文回答，分析要簡潔精準，不要重複相同的論點
 
 === 我的 Macro Regime Framework ===
 ${md}
@@ -2719,39 +2727,48 @@ async function macroChat(){
 }
 
 async function callGrok(messages,clearOutput=false){
-  const key=settings.grokKey||document.getElementById('grokKey')?.value?.trim()||'';
+  const key=settings.geminiKey||document.getElementById('geminiKey')?.value?.trim()||'';
   if(!key){
-    showMacroError('請先在 Settings 填入 Grok API Key（console.x.ai）');
+    showMacroError('請先在 Settings 填入 Gemini API Key<br><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">免費取得 →</a>');
     return;
   }
-  const model=document.getElementById('grokModel').value;
+  const model=document.getElementById('grokModel').value; // reusing selector id
   const out=document.getElementById('macroOutput');
 
   if(clearOutput){
-    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">⟳ Grok 分析中...</div>';
+    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">⟳ Gemini 分析中（低溫嚴謹模式）...</div>';
   } else {
     out.innerHTML+='<div id="grok-typing" style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:4px 0">⟳ 思考中...</div>';
   }
   out.scrollTop=out.scrollHeight;
 
+  // Convert chat history to Gemini format (single prompt with turns)
+  // For macro we always send as a single full prompt for strictness
+  const fullPrompt=messages.map(m=>(m.role==='user'?'USER: ':'ASSISTANT: ')+m.content).join('\n\n');
+
   const body=JSON.stringify({
-    model,
-    messages,
-    temperature:0.6,
-    max_tokens:3000,
-    stream:false,
+    contents:[{parts:[{text:fullPrompt}]}],
+    generationConfig:{
+      temperature:0.15,        // LOW temperature = less hallucination
+      maxOutputTokens:3000,
+      topP:0.8,
+      topK:20,
+    },
+    safetySettings:[
+      {category:'HARM_CATEGORY_HARASSMENT',threshold:'BLOCK_NONE'},
+      {category:'HARM_CATEGORY_HATE_SPEECH',threshold:'BLOCK_NONE'},
+    ]
   });
 
-  // Grok uses OpenAI-compatible API at api.x.ai
-  const GROK_URL='https://api.x.ai/v1/chat/completions';
-  const hdrs={'Content-Type':'application/json','Authorization':'Bearer '+key};
-  const PROXIES=[
-    ()=>fetch(GROK_URL,{method:'POST',headers:hdrs,body,signal:AbortSignal.timeout(30000)}),
-    ()=>fetch('https://corsproxy.io/?'+encodeURIComponent(GROK_URL),{method:'POST',headers:hdrs,body,signal:AbortSignal.timeout(30000)}),
+  const BASE=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const ENDPOINTS=[
+    ()=>fetch(BASE,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(30000)}),
+    ()=>fetch('https://corsproxy.io/?'+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json','x-requested-with':'XMLHttpRequest'},body,signal:AbortSignal.timeout(30000)}),
+    ()=>fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(30000)}),
   ];
 
   let data=null,lastErr='';
-  for(const makeReq of PROXIES){
+  for(const makeReq of ENDPOINTS){
     try{
       const res=await makeReq();
       if(res.ok||res.status===400){data=await res.json();break;}
@@ -2759,24 +2776,26 @@ async function callGrok(messages,clearOutput=false){
     }catch(e){lastErr=e.message;continue;}
   }
 
-  // Remove typing indicator
   const typing=document.getElementById('grok-typing');
   if(typing)typing.remove();
 
   if(!data){showMacroError('連線失敗（'+lastErr+'）— 請確認部署在 GitHub Pages 上');return;}
-  if(data.error){showMacroError('Grok 錯誤：'+(data.error.message||JSON.stringify(data.error)));return;}
+  if(data.error){
+    const msg=data.error.message||'';
+    if(msg.includes('API_KEY')||msg.includes('key')){
+      showMacroError('⚠ Gemini API Key 無效。請至 <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">Google AI Studio</a> 確認。');
+    } else {
+      showMacroError('Gemini 錯誤：'+msg);
+    }
+    return;
+  }
 
-  const text=data.choices?.[0]?.message?.content||'（無回應）';
-  // Save assistant response to chat history
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'（無回應）';
   macroChatHistory.push({role:'assistant',content:text});
 
-  if(clearOutput){
-    out.innerHTML='';
-  }
+  if(clearOutput) out.innerHTML='';
   out.innerHTML+=renderMacroOutput(text);
   out.scrollTop=out.scrollHeight;
-
-  // Extract and show regime bar
   updateRegimeBar(text);
 }
 
