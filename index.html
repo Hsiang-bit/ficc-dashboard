@@ -529,7 +529,7 @@ select option{background:var(--bg2)}
   <div class="sec"><div class="acc" style="background:var(--pur)"></div><h2>Trade Log</h2><div class="sbadge" id="tcount">0 trades</div>
     <div style="margin-left:auto;display:flex;gap:8px">
       <button class="btn btn-a btn-sm" onclick="openAddModal()">+ 新增交易</button>
-      <button class="btn btn-g btn-sm" onclick="pushAllTrades()">◩ Notion全推</button>
+      <button class="btn btn-g btn-sm" onclick="pushAllTrades()" id="btnPushAll">◩ 推送新增</button>
     </div>
   </div>
   <div class="g4 mb16">
@@ -1395,6 +1395,7 @@ function renderTrades(){
     const dc=t.dir==='LONG'?'dir-l':'dir-s';
     const pd=t.pnl!=null?(t.pnl>=0?`<span class="pnl-p">+${t.pnl.toFixed(2)}R</span>`:`<span class="pnl-n">${t.pnl.toFixed(2)}R</span>`):'—';
     const cc=t.charts?Object.values(t.charts).filter(Boolean).length:0;
+    const synced=t.notionPageId?'<span style="font-size:9px;background:rgba(5,150,105,.1);color:var(--green);border:1px solid rgba(5,150,105,.2);border-radius:2px;padding:1px 4px;margin-left:4px">◩</span>':'';
     return`<tr onclick="openEditModal(${t.id})">
       <td style="color:var(--lo)">${i+1}</td>
       <td>${t.date}</td>
@@ -1410,6 +1411,9 @@ function renderTrades(){
     </tr>`;
   }).join('');
   updateStats();
+  const unsyncedCount=trades.filter(t=>!t.notionPageId).length;
+  const btnAll=document.getElementById('btnPushAll');
+  if(btnAll)btnAll.textContent=unsyncedCount>0?'◩ 推送新增 ('+unsyncedCount+')':'◩ 已全部同步';
 }
 function updateStats(){
   const cl=trades.filter(t=>t.status!=='OPEN'&&t.pnl!=null);
@@ -1820,30 +1824,55 @@ function loadNotionSettings(){
     }
   }
 }
+// ── Compress image before upload (max 800px wide, JPEG 0.75) ──
+async function compressImage(base64, maxW=1200){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const ratio=Math.min(1, maxW/img.width);
+      const w=Math.round(img.width*ratio);
+      const h=Math.round(img.height*ratio);
+      const cv=document.createElement('canvas');
+      cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(cv.toDataURL('image/jpeg',0.75));
+    };
+    img.onerror=()=>resolve(base64); // fallback original
+    img.src=base64;
+  });
+}
+
 // ── Upload a base64 image to Notion via File Upload API ──
 async function uploadImageToNotion(base64,filename,token){
-  // 1. base64 → Blob
-  const arr=base64.split(',');
-  const mime=arr[0].match(/:(.*?);/)[1];
+  // Compress first
+  const compressed=await compressImage(base64);
+  const arr=compressed.split(',');
+  const mime='image/jpeg';
   const bstr=atob(arr[1]);
   const u8=new Uint8Array(bstr.length);
   for(let i=0;i<bstr.length;i++)u8[i]=bstr.charCodeAt(i);
   const blob=new Blob([u8],{type:mime});
 
-  // 2. Create upload session
-  const{ok:sok,data:sdata}=await notionFetch('POST','/file-uploads',{filename,content_type:mime},token);
-  if(!sok)return null;
+  // Check size (Notion limit ~5MB)
+  if(blob.size>4.5*1024*1024){
+    console.warn('[Notion] Image too large after compression:',blob.size,'bytes');
+    return null;
+  }
+
+  // Create upload session
+  const{ok:sok,data:sdata}=await notionFetch('POST','/file-uploads',{filename:filename.replace(/\.\w+$/,'.jpg'),content_type:mime},token);
+  if(!sok){console.warn('[Notion] file-upload session failed',sdata);return null;}
   const uploadUrl=sdata.upload_url;
   const fileId=sdata.id;
-  if(!uploadUrl||!fileId)return null;
+  if(!uploadUrl||!fileId){console.warn('[Notion] no upload_url/id in response',sdata);return null;}
 
-  // 3. PUT binary to presigned URL (direct, no CORS proxy needed — it's S3)
+  // PUT binary to presigned S3 URL
   try{
     const fr=await fetch(uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:blob});
-    if(!fr.ok)return null;
-  }catch(e){return null;}
+    if(!fr.ok){console.warn('[Notion] S3 PUT failed',fr.status);return null;}
+  }catch(e){console.warn('[Notion] S3 PUT error',e);return null;}
 
-  return fileId; // use as {type:'file_upload',file_upload:{id:fileId}}
+  return fileId;
 }
 
 // ── Build Notion page properties for a trade ──
@@ -1908,17 +1937,26 @@ async function pushTradeNotion(){
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   let t;if(currentTradeId)t=trades.find(x=>x.id===currentTradeId);
   if(!t){toast('請先儲存交易','e');return;}
-  const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
 
+  // Warn if already pushed
+  if(t.notionPageId){
+    if(!confirm('此交易已推送過，確定重新推送？（會在 Notion 建立重複條目）'))return;
+    delete t.notionPageId;
+  }
+
+  const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
   toast('⏳ 推送中...');
   const{ok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
   if(!ok){toast('⚠ Notion: '+(data.message||'失敗'),'e');return;}
 
-  const pageId=data.id;
+  // Save page ID to prevent duplicate pushes
+  t.notionPageId=data.id;
+  saveAll();
+
   const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
   if(chartCount>0){
     toast('⏳ 上傳圖表中 ('+chartCount+'張)...');
-    await appendChartBlocks(pageId,t.charts,token);
+    await appendChartBlocks(data.id,t.charts,token);
   }
   toast('✓ 推送完成'+(chartCount>0?' (含'+chartCount+'張圖)':''));
 }
@@ -1927,20 +1965,47 @@ async function pushAllTrades(){
   const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   if(!trades.length){toast('無交易記錄','e');return;}
-  let ok=0;const total=trades.length;
-  for(let i=0;i<trades.length;i++){
-    const t=trades[i];
-    toast('⏳ 推送 '+(i+1)+'/'+total+' — '+t.asset);
+
+  // Only push trades that haven't been pushed yet (no notionPageId)
+  const newTrades=trades.filter(t=>!t.notionPageId);
+  if(!newTrades.length){
+    toast('✓ 所有交易已同步，無新增');
+    return;
+  }
+
+  const skipped=trades.length-newTrades.length;
+  let ok=0;const total=newTrades.length;
+  for(let i=0;i<newTrades.length;i++){
+    const t=newTrades[i];
+    toast('⏳ 推送新交易 '+(i+1)+'/'+total+' — '+t.asset);
     const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
     const{ok:pok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
     if(pok){
       ok++;
+      // Save Notion page ID to trade so it won't be pushed again
+      t.notionPageId=data.id;
+      saveAll();
       const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
-      if(chartCount>0)await appendChartBlocks(data.id,t.charts,token);
+      if(chartCount>0){
+        toast('⏳ 上傳圖表 '+t.asset+'...');
+        await appendChartBlocks(data.id,t.charts,token);
+      }
     }
     await new Promise(r=>setTimeout(r,500));
   }
-  toast('✓ 完成 '+ok+'/'+total+' 筆（含圖表）');
+  const skipMsg=skipped>0?' ('+skipped+'筆已跳過)':'';
+  toast('✓ 新增 '+ok+'/'+total+' 筆'+skipMsg+'（含圖表）');
+}
+
+// ── Force re-push a specific trade (clears its notionPageId) ──
+async function repushTrade(tradeId){
+  const t=trades.find(x=>x.id===tradeId);
+  if(!t)return;
+  if(t.notionPageId&&!confirm('此交易已推送過（Page: '+t.notionPageId.slice(0,8)+'...），確定要重新推送（會建立重複）？'))return;
+  delete t.notionPageId;
+  saveAll();
+  currentTradeId=tradeId;
+  await pushTradeNotion();
 }
 
 // ════════════════════════════════════
