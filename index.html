@@ -548,6 +548,7 @@ select option{background:var(--bg2)}
     <div style="margin-left:auto;display:flex;gap:8px">
       <button class="btn btn-a btn-sm" onclick="openAddModal()">+ 新增交易</button>
       <button class="btn btn-g btn-sm" onclick="pushAllTrades()" id="btnPushAll">◩ 推送新增</button>
+      <button class="btn btn-g btn-sm" onclick="syncAllTrades()" title="新建+更新全部交易到 Notion">↺ 全部同步</button>
     </div>
   </div>
   <div class="g4 mb16">
@@ -989,7 +990,7 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
       </div>
       <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
         <button class="btn btn-a" onclick="saveTrade()">💾 儲存</button>
-        <button class="btn btn-g" onclick="pushTradeNotion()">◩ Notion</button>
+        <button class="btn btn-g" id="notionPushBtn" onclick="pushTradeNotion()">◩ Notion</button>
         <button class="btn btn-danger" style="margin-left:auto" id="delBtn" onclick="deleteTrade()">刪除</button>
       </div>
     </div>
@@ -1696,6 +1697,8 @@ function openAddModal(){
   ['m-asset','m-dir','m-status'].forEach(id=>document.getElementById(id).selectedIndex=0);
   ['m-entry','m-exit','m-risk','m-r','m-reason','m-exitr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   _legs=[]; renderLegs(); calcLegsSummary();
+  const nbtn2=document.getElementById('notionPushBtn');
+  if(nbtn2) nbtn2.textContent='◩ 推送 Notion';
   currentChartPhase='entry';switchChartPhase('entry');buildCtabs(null);document.getElementById('tradeModal').classList.add('open');
 }
 function openEditModal(id){
@@ -1725,6 +1728,9 @@ function openEditModal(id){
     _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), sl:t.sl?String(t.sl):'', exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2)}];
   }
   renderLegs(); calcLegsSummary();
+  // Update Notion button label: Update vs Push
+  const nbtn=document.getElementById('notionPushBtn');
+  if(nbtn) nbtn.textContent=t.notionPageId?'◩ 更新 Notion':'◩ 推送 Notion';
   currentChartPhase='entry';switchChartPhase('entry');document.getElementById('tradeModal').classList.add('open');
 }
 function closeModal(){document.getElementById('tradeModal').classList.remove('open');window._pc={};}
@@ -2375,69 +2381,112 @@ async function appendChartBlocks(pageId,charts,token){
   }
 }
 
+// ── Delete all children of a Notion block (for chart refresh) ──
+async function clearPageBlocks(pageId,token){
+  const{ok,data}=await notionFetch('GET','/blocks/'+pageId+'/children?page_size=100',null,token);
+  if(!ok||!data.results)return;
+  for(const block of data.results){
+    await notionFetch('DELETE','/blocks/'+block.id,null,token);
+  }
+}
+
+// ── Upsert a single trade to Notion ──
+// CREATE if no notionPageId, UPDATE (patch) if already exists
+async function upsertTradeNotion(t, token, tDbId){
+  const isUpdate = !!t.notionPageId;
+
+  if(isUpdate){
+    // 1. Update properties on existing page
+    const propsOnly={properties: buildTradeProps(t,tDbId).properties};
+    const{ok,data}=await notionFetch('PATCH','/pages/'+t.notionPageId, propsOnly, token);
+    if(!ok){
+      // Page may have been deleted in Notion — fallback to create new
+      if(data.status===404||data.object==='error'){
+        delete t.notionPageId;
+        return upsertTradeNotion(t,token,tDbId); // retry as create
+      }
+      return{ok:false,msg:data.message||'更新失敗'};
+    }
+    // 2. Clear old chart blocks and re-append
+    const chartCount=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
+    if(chartCount>0){
+      await clearPageBlocks(t.notionPageId,token);
+      await appendChartBlocks(t.notionPageId,t.charts,token);
+    }
+    return{ok:true,pageId:t.notionPageId,created:false,chartCount};
+  } else {
+    // Create new page
+    const{ok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
+    if(!ok)return{ok:false,msg:data.message||'建立失敗'};
+    t.notionPageId=data.id;
+    const chartCount=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
+    if(chartCount>0) await appendChartBlocks(data.id,t.charts,token);
+    return{ok:true,pageId:data.id,created:true,chartCount};
+  }
+}
+
 async function pushTradeNotion(){
   const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   let t;if(currentTradeId)t=trades.find(x=>x.id===currentTradeId);
   if(!t){toast('請先儲存交易','e');return;}
 
-  // Warn if already pushed
-  if(t.notionPageId){
-    if(!confirm('此交易已推送過，確定重新推送？（會在 Notion 建立重複條目）'))return;
-    delete t.notionPageId;
-  }
-
   const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
-  toast('⏳ 推送中...');
-  const{ok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
-  if(!ok){toast('⚠ Notion: '+(data.message||'失敗'),'e');return;}
+  const isUpdate=!!t.notionPageId;
+  toast(isUpdate?'⏳ 更新 Notion 頁面...':'⏳ 建立 Notion 頁面...');
 
-  // Save page ID to prevent duplicate pushes
-  t.notionPageId=data.id;
-  saveAll();
+  const result=await upsertTradeNotion(t,token,tDbId);
+  if(!result.ok){toast('⚠ Notion: '+result.msg,'e');return;}
+  saveAll();renderTrades();
 
-  const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
-  if(chartCount>0){
-    toast('⏳ 上傳圖表中 ('+chartCount+'張)...');
-    await appendChartBlocks(data.id,t.charts,token);
-  }
-  toast('✓ 推送完成'+(chartCount>0?' (含'+chartCount+'張圖)':''));
+  const action=result.created?'✓ 已建立':'✓ 已更新';
+  const chartMsg=result.chartCount>0?' (含'+result.chartCount+'張圖)':'';
+  toast(action+chartMsg);
 }
 
 async function pushAllTrades(){
   const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
   if(!token){toast('⚠ 請填入 Notion Token','e');return;}
   if(!trades.length){toast('無交易記錄','e');return;}
+  const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
 
-  // Only push trades that haven't been pushed yet (no notionPageId)
+  // Push only new (no notionPageId) trades
   const newTrades=trades.filter(t=>!t.notionPageId);
-  if(!newTrades.length){
-    toast('✓ 所有交易已同步，無新增');
-    return;
-  }
+  if(!newTrades.length){toast('✓ 所有交易已同步，無新增');return;}
 
-  const skipped=trades.length-newTrades.length;
-  let ok=0;const total=newTrades.length;
+  let created=0,failed=0;
   for(let i=0;i<newTrades.length;i++){
     const t=newTrades[i];
-    toast('⏳ 推送新交易 '+(i+1)+'/'+total+' — '+t.asset);
-    const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
-    const{ok:pok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
-    if(pok){
-      ok++;
-      // Save Notion page ID to trade so it won't be pushed again
-      t.notionPageId=data.id;
-      saveAll();
-      const chartCount=t.charts?Object.values(t.charts).filter(Boolean).length:0;
-      if(chartCount>0){
-        toast('⏳ 上傳圖表 '+t.asset+'...');
-        await appendChartBlocks(data.id,t.charts,token);
-      }
-    }
+    toast('⏳ 建立 '+(i+1)+'/'+newTrades.length+' — '+t.asset+' '+t.date);
+    const result=await upsertTradeNotion(t,token,tDbId);
+    if(result.ok){created++;saveAll();}
+    else{failed++;console.warn('Push failed:',t.id,result.msg);}
+    await new Promise(r=>setTimeout(r,400));
+  }
+  renderTrades();
+  toast('✓ 新建 '+created+' 筆'+(failed?'  ⚠ 失敗 '+failed+' 筆':''));
+}
+
+// ── Sync ALL trades (create new + update existing) ──
+async function syncAllTrades(){
+  const token=document.getElementById('notionToken').value.trim()||settings.notionToken||'';
+  if(!token){toast('⚠ 請填入 Notion Token','e');return;}
+  if(!trades.length){toast('無交易記錄','e');return;}
+  if(!confirm('將同步全部 '+trades.length+' 筆交易（新建+更新），已有 Notion 頁面的會直接更新屬性與圖表。確定？'))return;
+
+  const tDbId=settings.tradeLogDbId||'f68442d2-f182-42d9-b887-c18d528f65ac';
+  let created=0,updated=0,failed=0;
+  for(let i=0;i<trades.length;i++){
+    const t=trades[i];
+    const action=t.notionPageId?'更新':'建立';
+    toast('⏳ '+action+' '+(i+1)+'/'+trades.length+' — '+t.asset+' '+t.date);
+    const result=await upsertTradeNotion(t,token,tDbId);
+    if(result.ok){result.created?created++:updated++;saveAll();}
+    else{failed++;console.warn('Sync failed:',t.id,result.msg);}
     await new Promise(r=>setTimeout(r,500));
   }
-  const skipMsg=skipped>0?' ('+skipped+'筆已跳過)':'';
-  toast('✓ 新增 '+ok+'/'+total+' 筆'+skipMsg+'（含圖表）');
+  renderTrades();
+  toast('✓ 新建 '+created+' 更新 '+updated+(failed?'  ⚠ 失敗 '+failed:''));
 }
 
 // ── Force re-push a specific trade (clears its notionPageId) ──
