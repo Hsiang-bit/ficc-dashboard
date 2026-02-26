@@ -649,10 +649,21 @@ select option{background:var(--bg2)}
         <textarea id="macroMd" style="width:100%;height:320px;font-family:var(--mono);font-size:10px;line-height:1.7;resize:vertical;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px;color:var(--hi)" spellcheck="false" placeholder="在此貼上你的 Macro Regime MD 框架..."></textarea>
       </div>
 
+      <!-- Perplexity: My View input -->
+      <div id="myViewBlock" style="display:none;margin-bottom:10px">
+        <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:6px">💭 我的當前觀點</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-bottom:6px">描述你對當前市場的判斷，Perplexity 會搜尋即時數據並比對</div>
+        <textarea id="macroMyView" style="width:100%;height:140px;font-family:var(--sans);font-size:11px;line-height:1.7;resize:vertical;background:var(--bg2);border:1px solid rgba(124,58,237,.3);border-radius:var(--r);padding:10px;color:var(--hi)" placeholder="例如：
+我認為目前是 Risk-Off 環境，Fed 偏鷹派，DXY 應該偏強。
+Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
+主要擔心的是通脹反彈的風險..."></textarea>
+      </div>
+
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-macro" onclick="macroAnalyze('full')">🧠 完整 Regime 分析</button>
-        <button class="btn btn-macro" onclick="macroAnalyze('signal')">📡 交易信號建議</button>
-        <button class="btn btn-macro" onclick="macroAnalyze('risk')">⚠ 風險評估</button>
+        <button class="btn btn-macro" id="btnFull" onclick="macroAnalyze('full')">🧠 完整 Regime 分析</button>
+        <button class="btn btn-macro" id="btnSignal" onclick="macroAnalyze('signal')">📡 交易信號建議</button>
+        <button class="btn btn-macro" id="btnRisk" onclick="macroAnalyze('risk')">⚠ 風險評估</button>
+        <button class="btn btn-macro" id="btnBlind" onclick="macroAnalyze('blind')" style="display:none">🔍 找出我的盲點</button>
         <button class="btn btn-macro" onclick="macroAnalyze('custom')">💬 自訂問題</button>
       </div>
       <textarea id="macroCustomQ" style="width:100%;height:52px;margin-top:8px;font-family:var(--sans);font-size:11px;resize:vertical;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px;color:var(--hi);display:none" placeholder="輸入自訂問題..."></textarea>
@@ -661,16 +672,25 @@ select option{background:var(--bg2)}
     <!-- RIGHT: AI Output -->
     <div>
       <div class="card" style="height:calc(100vh - 140px);display:flex;flex-direction:column">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
-          <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">🤖 Gemini Macro Analysis</div>
-          <div style="display:flex;gap:6px;align-items:center">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0">
+          <div id="macroAiLabel" style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">🤖 Macro Analysis</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="macroProvider" onchange="onMacroProviderChange()" style="font-size:10px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--mid)">
+              <option value="gemini">Gemini（手動數據）</option>
+              <option value="perplexity">Perplexity（即時搜尋）</option>
+            </select>
             <select id="grokModel" style="font-size:10px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--mid)">
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash 🔥（推薦）</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash ⚡</option>
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro 🧠（最嚴謹）</option>
+              <option value="gemini-2.5-flash">2.5 Flash 🔥</option>
+              <option value="gemini-2.0-flash">2.0 Flash ⚡</option>
+              <option value="gemini-2.5-pro">2.5 Pro 🧠</option>
             </select>
             <button class="btn btn-g btn-sm" onclick="macroClear()">清除</button>
           </div>
+        </div>
+        <!-- Perplexity mode hint bar -->
+        <div id="pplxHint" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);flex-shrink:0">
+          🔍 <b>Perplexity 模式</b>：AI 會即時搜尋最新市場數據，不需手動輸入數值。<br>
+          在左側輸入你的 <b>觀點與判斷</b>，Perplexity 會比對現況、指出盲點。
         </div>
 
         <!-- Regime Summary Bar -->
@@ -681,13 +701,13 @@ select option{background:var(--bg2)}
         <div id="macroOutput" style="flex:1;overflow-y:auto;font-size:calc(var(--fs));line-height:1.8;color:var(--hi)">
           <div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:20px 0;text-align:center">
             填入市場數據 → 選擇分析類型 → 點擊按鈕<br><br>
-            需要在 Settings 填入 <span style="color:var(--pur)">Gemini API Key</span>（aistudio.google.com）
+            選擇 <b>Gemini</b>：填入市場數據 → 分析<br>選擇 <b>Perplexity</b>：填入你的觀點 → AI 即時搜尋比對<br><br>需在 Settings 填入對應的 API Key
           </div>
         </div>
 
         <!-- Chat input -->
         <div style="display:flex;gap:6px;margin-top:12px;flex-shrink:0;border-top:1px solid var(--border);padding-top:12px">
-          <input id="macroFollowUp" type="text" placeholder="追問 Grok..." style="flex:1;font-size:11px" onkeydown="if(event.key==='Enter')macroChat()">
+          <input id="macroFollowUp" type="text" placeholder="追問..." style="flex:1;font-size:11px" onkeydown="if(event.key==='Enter')macroChat()">
           <button class="btn btn-macro btn-sm" onclick="macroChat()">送出</button>
         </div>
       </div>
@@ -790,14 +810,15 @@ select option{background:var(--bg2)}
     </div>
   </div>
   <div class="card mb16" style="max-width:680px">
-    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🧠 Grok API Key（未使用，Macro 改用 Gemini Key）</div>
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🔍 Perplexity API Key（Macro 即時搜尋）</div>
     <div class="settings-row">
-      <div class="settings-label">Grok API Key</div>
-      <input type="password" id="grokKey" placeholder="xai-..." oninput="saveSettings()" style="flex:1;font-size:10px">
-      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('grokKey')">👁</button>
+      <div class="settings-label">Perplexity Key</div>
+      <input type="password" id="pplxKey" placeholder="pplx-..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('pplxKey')">👁</button>
     </div>
     <div style="font-family:var(--mono);font-size:10px;color:var(--lo);margin-top:8px;line-height:1.7">
-      Grok 3 Mini Beta 免費額度充足。取得：<a href="https://console.x.ai" target="_blank" style="color:var(--blue)">console.x.ai</a> → API Keys
+      取得免費額度（$5 credit）：<a href="https://www.perplexity.ai/settings/api" target="_blank" style="color:var(--blue)">perplexity.ai/settings/api</a> → API → Generate<br>
+      使用 <b>sonar-pro</b> 模型，內建即時網路搜尋，不需手動輸入市場數值。
     </div>
   </div>
   <div class="card mb16" style="max-width:680px">
@@ -942,7 +963,7 @@ function load(){
   try{ganttData=JSON.parse(localStorage.getItem('ficc_gantt')||'{}');}catch(e){ganttData={};}
   if(settings.notionToken) document.getElementById('notionToken').value=settings.notionToken;
   if(settings.geminiKey) document.getElementById('geminiKey').value=settings.geminiKey;
-  if(settings.grokKey){const el=document.getElementById('grokKey');if(el)el.value=settings.grokKey;}
+  if(settings.pplxKey){const el=document.getElementById('pplxKey');if(el)el.value=settings.pplxKey;}
   if(settings.ghToken){const el=document.getElementById('ghToken');if(el)el.value=settings.ghToken;}
   if(settings.imgbbKey){const el=document.getElementById('imgbbKey');if(el)el.value=settings.imgbbKey;}
   if(settings.ghGistId){
@@ -965,7 +986,7 @@ function saveAll(){
 function saveSettings(){
   settings.notionToken=document.getElementById('notionToken').value;
   settings.geminiKey=document.getElementById('geminiKey').value;
-  const gk=document.getElementById('grokKey');if(gk)settings.grokKey=gk.value;
+  const pk=document.getElementById('pplxKey');if(pk)settings.pplxKey=pk.value;
   const pid=document.getElementById('notionParentId');
   if(pid)settings.notionParentId=pid.value;
   const gh=document.getElementById('ghToken');
@@ -2589,6 +2610,150 @@ const DEFAULT_MACRO_MD=`# Macro Regime Analysis Framework
 
 let macroChatHistory=[];
 
+function onMacroProviderChange(){
+  const isPplx=document.getElementById('macroProvider').value==='perplexity';
+  // Toggle left panel visibility
+  document.getElementById('myViewBlock').style.display=isPplx?'block':'none';
+  document.getElementById('btnBlind').style.display=isPplx?'inline-flex':'none';
+  // Update model selector options
+  const sel=document.getElementById('grokModel');
+  sel.innerHTML=isPplx
+    ? '<option value="sonar-pro">Sonar Pro 🔍（推薦，含搜尋）</option><option value="sonar">Sonar ⚡（快速）</option><option value="sonar-reasoning-pro">Sonar Reasoning Pro 🧠（深度）</option>'
+    : '<option value="gemini-2.5-flash">2.5 Flash 🔥</option><option value="gemini-2.0-flash">2.0 Flash ⚡</option><option value="gemini-2.5-pro">2.5 Pro 🧠</option>';
+  // Toggle hint bar
+  document.getElementById('pplxHint').style.display=isPplx?'block':'none';
+  document.getElementById('macroAiLabel').textContent=isPplx?'🔍 Perplexity Macro Analysis':'🤖 Gemini Macro Analysis';
+}
+
+function buildPerplexityPrompt(type){
+  const md=document.getElementById('macroMd').value;
+  const myView=document.getElementById('macroMyView').value.trim();
+  const today=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+  const myViewBlock=myView?'\n\n=== \u6211\u7684\u7576\u524d\u89c0\u9ede ===\n'+myView:'';
+
+  const base='\u4f60\u662f\u4e00\u500b FICC \u5b8f\u89c0\u5206\u6790\u5e2b\u3002\u4eca\u5929\u662f '+today+'\u3002\u8acb\u641c\u5c0b\u6700\u65b0\u7684\u5e02\u5834\u6578\u64da\uff0810Y/2Y Yield\u3001DXY\u3001Gold\u3001Oil\u3001SPX\u3001BTC\u3001\u6700\u65b0 Fed \u7acb\u5834\u3001CPI \u6578\u64da\u3001\u8fd1\u671f\u91cd\u8981\u4e8b\u4ef6\uff09\u5f8c\u56de\u7b54\u3002\n\n'
+    +'\u3010\u56b4\u683c\u898f\u5247\u3011\n'
+    +'1. \u6240\u6709\u6578\u64da\u5fc5\u9808\u4f86\u81ea\u771f\u5be6\u641c\u5c0b\u7d50\u679c\uff0c\u4e26\u6a19\u793a\u6578\u64da\u65e5\u671f\n'
+    +'2. \u7981\u6b62\u4f7f\u7528\u300c\u53ef\u80fd\u3001\u6216\u8a31\u3001\u9810\u8a08\u300d\u7b49\u6a21\u7cca\u8a5e\u2014\u2014\u53ea\u9648\u8ff0\u641c\u5c0b\u5230\u7684\u4e8b\u5be6\n'
+    +'3. \u6bcf\u500b\u8cc7\u7522\u65b9\u5411\u6a19\u793a\u4fe1\u5fc3\u7a0b\u5ea6\uff1aHigh / Medium / Low\n'
+    +'4. \u82e5\u641c\u5c0b\u4e0d\u5230\u67d0\u6578\u64da\uff0c\u660e\u78ba\u8aaa\u300c\u672a\u627e\u5230\u6578\u64da\u300d\n\n'
+    +'=== \u6211\u7684 Macro Framework ===\n'+md;
+
+  if(type==='full') return base+myViewBlock
+    +'\n\n\u8acb\u57f7\u884c\uff1a\n'
+    +'1. \u641c\u5c0b\u4e26\u6574\u7406\u7576\u524d\u5404\u9805 FICC \u76f8\u95dc\u6307\u6a19\u7684\u5373\u6642\u6578\u503c\n'
+    +'2. \u6839\u64da Framework \u5224\u65b7\u7576\u524d Macro Regime\n'
+    +'3. \u7d66\u51fa\u6bcf\u500b\u8cc7\u7522\uff08Bond/FX/Gold/Oil/BTC\uff09\u7684\u65b9\u5411\u8207\u4fe1\u5fc3\u7a0b\u5ea6\n'
+    +'4. \u5217\u51fa\u672c\u9031\u6700\u95dc\u9375\u7684\u5b8f\u89c0\u98a8\u96aa\n'
+    +(myView?'5. \u6bd4\u5c0d\u6211\u7684\u89c0\u9ede\uff0c\u6307\u51fa\u54ea\u4e9b\u5224\u65b7\u6b63\u78ba\u3001\u54ea\u4e9b\u9700\u8981\u4fee\u6b63\n':'')
+    +'\n\u56de\u7b54\u7d50\u5c3e\u7528\u56fa\u5b9a\u683c\u5f0f\uff1a\n**REGIME: [\u540d\u7a31]**\n**\u4e3b\u8981\u9a45\u52d5\uff1a[1-2\u500b\u56e0\u7d20]**\n**FICC \u4fe1\u865f\uff1aBond[\u65b9\u5411] FX[\u65b9\u5411] Gold[\u65b9\u5411] Oil[\u65b9\u5411] BTC[\u65b9\u5411]**';
+
+  if(type==='signal') return base+myViewBlock
+    +'\n\n\u8acb\u641c\u5c0b\u6700\u65b0\u6578\u64da\u5f8c\uff0c\u7d66\u51fa FICC \u5404\u8cc7\u7522\u7684\u5177\u9ad4\u4ea4\u6613\u4fe1\u865f\uff1a\n'
+    +'- \u6bcf\u500b\u8cc7\u7522\uff1a\u65b9\u5411\uff08LONG/SHORT/NEUTRAL\uff09\u3001\u4fe1\u5fc3\u7a0b\u5ea6\u3001\u5165\u5834\u908f\u8f2f\uff08\u5f15\u7528\u5177\u9ad4\u6578\u64da\uff09\n'
+    +'- \u6700\u8fd1 1-2 \u9031\u9700\u8981\u95dc\u6ce8\u7684\u50ac\u5316\u5291\u4e8b\u4ef6\n'
+    +(myView?'- \u6bd4\u5c0d\u6211\u7684\u89c0\u9ede\uff0c\u6307\u51fa\u54ea\u4e9b\u4fe1\u865f\u8207\u6211\u4e00\u81f4\u3001\u54ea\u4e9b\u76f8\u53cd\n':'');
+
+  if(type==='risk') return base+myViewBlock
+    +'\n\n\u8acb\u641c\u5c0b\u6700\u65b0\u6578\u64da\u5f8c\uff0c\u5206\u6790\u7576\u524d\u4e3b\u8981\u98a8\u96aa\uff1a\n'
+    +'- \u76ee\u524d\u5e02\u5834\u6700\u5927\u7684 Tail Risk \u662f\u4ec0\u9ebc\uff08\u5f15\u7528\u5177\u9ad4\u4e8b\u4ef6/\u6578\u64da\uff09\n'
+    +'- \u5404\u8cc7\u7522\u7576\u524d\u6700\u5927\u7684\u4e0b\u884c\u60c5\u5883\n'
+    +'- \u76f8\u95dc\u6027\u7570\u5e38\u8b66\u793a\uff08\u54ea\u4e9b\u8cc7\u7522\u7684\u76f8\u95dc\u6027\u5728\u6539\u8b8a\uff09\n'
+    +(myView?'- \u6211\u7684\u89c0\u9ede\u4e2d\u6709\u54ea\u4e9b\u98a8\u96aa\u88ab\u4f4e\u4f30\u6216\u5ffd\u7565\n':'');
+
+  if(type==='blind') return base
+    +'\n\n=== \u6211\u7684\u7576\u524d\u89c0\u9ede ===\n'+(myView||'(\u672a\u586b\u5beb)')
+    +'\n\n\u8acb\u641c\u5c0b\u6700\u65b0\u5e02\u5834\u6578\u64da\uff0c\u5c08\u9580\u627e\u51fa\u6211\u89c0\u9ede\u4e2d\u7684\u76f2\u9ede\uff1a\n'
+    +'1. \u54ea\u4e9b\u6578\u64da\u8207\u6211\u7684\u5224\u65b7\u76f8\u77db\u76fe\uff1f\uff08\u5217\u51fa\u5177\u9ad4\u6578\u5b57\uff09\n'
+    +'2. \u6211\u5ffd\u7565\u4e86\u54ea\u4e9b\u91cd\u8981\u7684\u5b8f\u89c0\u56e0\u7d20\uff1f\n'
+    +'3. \u6211\u7684\u89c0\u9ede\u4e2d\u54ea\u4e9b\u5047\u8a2d\u53ef\u80fd\u5df2\u7d93\u904e\u6642\uff1f\n'
+    +'4. \u7d66\u51fa\u4e00\u500b\u300c\u53cd\u5411\u60c5\u5883\u300d\uff1a\u5982\u679c\u6211\u7684\u4e3b\u8981\u5224\u65b7\u662f\u932f\u7684\uff0c\u5e02\u5834\u53ef\u80fd\u6703\u600e\u9ebc\u8d70\uff1f\n'
+    +'\u8acb\u76f4\u63a5\u3001\u5ba2\u89c0\uff0c\u4e0d\u8981\u70ba\u4e86\u907f\u514d\u885d\u7a81\u800c\u8edf\u5316\u7b54\u6848\u3002';
+
+  // custom
+  return base+myViewBlock+'\n\n'+(document.getElementById('macroCustomQ').value||'\u8acb\u5206\u6790\u7576\u524d\u5e02\u5834');
+}
+
+async function callPerplexity(prompt, clearOutput=false){
+  const key=settings.pplxKey||document.getElementById('pplxKey')?.value?.trim()||'';
+  if(!key){
+    showMacroError('請先在 Settings 填入 Perplexity API Key<br><a href="https://www.perplexity.ai/settings/api" target="_blank" style="color:var(--blue)">perplexity.ai/settings/api →</a>');
+    return;
+  }
+  const model=document.getElementById('grokModel').value;
+  const out=document.getElementById('macroOutput');
+
+  if(clearOutput){
+    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">🔍 Perplexity 搜尋中...</div>';
+  } else {
+    out.innerHTML+='<div id="pplx-typing" style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:4px 0">🔍 搜尋中...</div>';
+  }
+  out.scrollTop=out.scrollHeight;
+
+  // Build messages: include chat history for follow-ups
+  const msgs=macroChatHistory.length>0
+    ? macroChatHistory
+    : [{role:'user',content:prompt}];
+  if(macroChatHistory.length===0) macroChatHistory.push({role:'user',content:prompt});
+
+  const body=JSON.stringify({
+    model,
+    messages:msgs,
+    temperature:0.2,
+    max_tokens:4000,
+    search_recency_filter:'week',     // focus on this week's data
+    return_citations:true,
+    return_images:false,
+  });
+
+  const PPLX_URL='https://api.perplexity.ai/chat/completions';
+  const hdrs={'Content-Type':'application/json','Authorization':'Bearer '+key};
+  const PROXIES=[
+    {name:'直接', url:PPLX_URL},
+    {name:'corsproxy', url:'https://corsproxy.io/?'+encodeURIComponent(PPLX_URL)},
+  ];
+
+  let data=null,lastErr='';
+  for(const p of PROXIES){
+    try{
+      const res=await fetch(p.url,{method:'POST',headers:hdrs,body,signal:AbortSignal.timeout(45000)});
+      let json;
+      try{json=await res.json();}catch(e){lastErr=p.name+': 非JSON';continue;}
+      if(res.ok){data=json;break;}
+      const msg=json?.error?.message||json?.detail||('HTTP '+res.status);
+      lastErr=p.name+': '+msg;
+      if(res.status===401||res.status===403){
+        const t=document.getElementById('pplx-typing');if(t)t.remove();
+        showMacroError('Perplexity '+res.status+': '+msg+'<br><br>請確認 Key 為 pplx-... 開頭且有效');
+        return;
+      }
+    }catch(e){lastErr=p.name+': '+e.message;continue;}
+  }
+
+  const t=document.getElementById('pplx-typing');if(t)t.remove();
+
+  if(!data){showMacroError('連線失敗：'+lastErr+'<br><br>請確認部署在 GitHub Pages 上');return;}
+  if(data.error){showMacroError('Perplexity 錯誤：'+(data.error.message||JSON.stringify(data.error)));return;}
+
+  const text=data.choices?.[0]?.message?.content||'（無回應）';
+  macroChatHistory.push({role:'assistant',content:text});
+
+  // Format citations
+  const citations=data.citations||[];
+  let citationHtml='';
+  if(citations.length){
+    citationHtml='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">'
+      +'<div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-bottom:4px">📎 來源</div>'
+      +citations.map((c,i)=>`<a href="${c}" target="_blank" style="display:block;font-family:var(--mono);font-size:9px;color:var(--blue);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">[${i+1}] ${c}</a>`).join('')
+      +'</div>';
+  }
+
+  if(clearOutput) out.innerHTML='';
+  out.innerHTML+=renderMacroOutput(text)+citationHtml;
+  out.scrollTop=out.scrollHeight;
+  updateRegimeBar(text);
+}
+
 function macroInit(){
   const md=localStorage.getItem(MACRO_MD_KEY);
   document.getElementById('macroMd').value=md||DEFAULT_MACRO_MD;
@@ -2704,10 +2869,21 @@ async function macroAnalyze(type){
     q.style.display='block';
     if(!q.value.trim()){q.focus();return;}
   }
-  macroSaveInputs();
-  const prompt=buildMacroPrompt(type);
-  macroChatHistory=[{role:'user',content:prompt}];
-  await callGrok(macroChatHistory,true);
+  const isPplx=document.getElementById('macroProvider').value==='perplexity';
+  macroChatHistory=[];
+  if(isPplx){
+    if(type==='blind'&&!document.getElementById('macroMyView').value.trim()){
+      toast('請先填入你的當前觀點再找盲點','e');return;
+    }
+    const prompt=buildPerplexityPrompt(type);
+    macroChatHistory=[{role:'user',content:prompt}];
+    await callPerplexity(prompt,true);
+  } else {
+    macroSaveInputs();
+    const prompt=buildMacroPrompt(type);
+    macroChatHistory=[{role:'user',content:prompt}];
+    await callGrok(macroChatHistory,true);
+  }
 }
 
 async function macroContinue(){
@@ -2730,12 +2906,13 @@ async function macroChat(){
   if(!macroChatHistory.length){toast('請先執行一次分析','e');return;}
   macroChatHistory.push({role:'user',content:q});
 
-  // Show user message
   const out=document.getElementById('macroOutput');
   out.innerHTML+=`<div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.15);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:calc(var(--fs) - 1px);color:var(--mid)">💬 ${q}</div>`;
   out.scrollTop=out.scrollHeight;
 
-  await callGrok(macroChatHistory,false);
+  const isPplx=document.getElementById('macroProvider').value==='perplexity';
+  if(isPplx) await callPerplexity(q,false);
+  else await callGrok(macroChatHistory,false);
 }
 
 async function callGrok(messages,clearOutput=false){
