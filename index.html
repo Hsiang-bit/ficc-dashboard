@@ -189,7 +189,7 @@ select option{background:var(--bg2)}
 .btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
 .macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
 .leg-table{overflow-x:auto;margin-bottom:0}
-.leg-row,.leg-header{display:grid;grid-template-columns:105px 86px 86px 105px 86px 48px 48px 52px 38px 26px;gap:3px;align-items:center;min-width:660px}
+.leg-row,.leg-header{display:grid;grid-template-columns:105px 86px 86px 105px 86px 48px 48px 52px 68px 26px;gap:3px;align-items:center;min-width:700px}
 .leg-row{margin-bottom:3px}
 .leg-header{margin-bottom:4px;padding:0 2px}
 .leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo);white-space:nowrap}
@@ -562,7 +562,7 @@ select option{background:var(--bg2)}
   </div>
   <div style="overflow-x:auto">
     <table class="ttable">
-      <thead><tr><th>#</th><th>日期</th><th>資產</th><th>方向</th><th>入場</th><th>出場</th><th>Risk%</th><th>R</th><th>P&L</th><th>狀態</th><th>理由</th><th>圖表</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>日期</th><th>資產</th><th>方向</th><th>入場</th><th>出場</th><th>Risk%</th><th>R</th><th>P&L(R)</th><th>PnL $</th><th>狀態</th><th>理由</th><th>圖表</th><th>操作</th></tr></thead>
       <tbody id="tBody"><tr><td colspan="13" class="t-empty">尚無記錄，點擊「+ 新增交易」</td></tr></tbody>
     </table>
   </div>
@@ -1965,15 +1965,21 @@ function refreshLegR(idx){
 
 function updateLeg(idx, field, val){
   _legs[idx][field] = val;
-  refreshLegR(idx);        // update only this row's R cell
-  calcSummaryOnly();       // update summary bar (no renderLegs)
+  // Update has-val class directly — no DOM rebuild needed
+  const inp = document.querySelector('#leg-'+idx+' input[data-field="'+field+'"]');
+  if(inp) inp.classList.toggle('has-val', !!val);
+  refreshLegR(idx);
+  calcSummaryOnly();
 }
 
 // ── Core calculation (no DOM side effects) ──
 function _computeLegs(){
   const dir = document.getElementById('m-dir')?.value||'LONG';
+  // PnL computed independently — always available
+  const totalPnl = _legs.reduce((s,l)=>s+(parseFloat(l.pnl)||0),0);
+  const hasPnl = _legs.some(l=>parseFloat(l.pnl));
   const legsWithEntry = _legs.filter(l => parseFloat(l.entryPrice));
-  if(!legsWithEntry.length) return null;
+  if(!legsWithEntry.length) return {avgEntry:0,avgExit:0,totalRisk:0,weightedR:null,totalPnl,hasPnl,noEntry:true};
   const hasSizes = _legs.every(l => parseFloat(l.size) > 0);
   const totalSize = hasSizes ? _legs.reduce((s,l)=>s+(parseFloat(l.size)||0),0) : legsWithEntry.length;
   const w = l => hasSizes ? (parseFloat(l.size)||0)/totalSize : 1/legsWithEntry.length;
@@ -1994,8 +2000,6 @@ function _computeLegs(){
       return s+r*wt;
     },0);
   }
-  const totalPnl = _legs.reduce((s,l)=>s+(parseFloat(l.pnl)||0),0);
-  const hasPnl = _legs.some(l=>parseFloat(l.pnl));
   return{avgEntry,avgExit,totalRisk,weightedR,totalPnl,hasPnl};
 }
 
@@ -2003,10 +2007,21 @@ function _computeLegs(){
 function calcSummaryOnly(){
   const res = _computeLegs();
   if(!res){
-    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR'].forEach(id=>{ document.getElementById(id).textContent='—'; });
+    ['sumAvgEntry','sumAvgExit','sumTotalRisk','sumAutoR','sumTotalPnl'].forEach(id=>{
+      const el=document.getElementById(id); if(el)el.textContent='—';
+    });
     document.getElementById('m-entry').value=0;
     document.getElementById('m-exit').value=0;
     document.getElementById('m-risk').value=2;
+    return;
+  }
+  // If no entry price legs, only update PnL and return
+  if(res.noEntry){
+    const pnlEl=document.getElementById('sumTotalPnl');
+    if(pnlEl){
+      if(res.hasPnl){const p=res.totalPnl;pnlEl.textContent=(p>=0?'+':'')+p.toFixed(2);pnlEl.style.color=p>=0?'var(--green)':'var(--red)';}
+      else{pnlEl.textContent='—';pnlEl.style.color='var(--green)';}
+    }
     return;
   }
   const{avgEntry,avgExit,totalRisk,weightedR,totalPnl,hasPnl}=res;
