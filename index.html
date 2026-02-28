@@ -189,7 +189,7 @@ select option{background:var(--bg2)}
 .btn-macro:hover{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(219,39,119,.25));border-color:var(--pur)}
 .macro-in{width:100%;font-size:11px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--hi);font-family:var(--mono)}
 .leg-table{overflow-x:auto;margin-bottom:0}
-.leg-row,.leg-header{display:grid;grid-template-columns:105px 90px 90px 105px 90px 52px 52px 38px 26px;gap:3px;align-items:center;min-width:620px}
+.leg-row,.leg-header{display:grid;grid-template-columns:105px 86px 86px 105px 86px 48px 48px 52px 38px 26px;gap:3px;align-items:center;min-width:660px}
 .leg-row{margin-bottom:3px}
 .leg-header{margin-bottom:4px;padding:0 2px}
 .leg-header div{font-family:var(--mono);font-size:9px;color:var(--lo);white-space:nowrap}
@@ -557,7 +557,8 @@ select option{background:var(--bg2)}
     <div class="sbox"><div class="sl">Total Trades</div><div class="sv sm" id="ts-tot">0</div></div>
     <div class="sbox"><div class="sl">Win Rate</div><div class="sv sm" id="ts-wr">—</div></div>
     <div class="sbox"><div class="sl">Avg R</div><div class="sv sm" id="ts-avgr">—</div></div>
-    <div class="sbox"><div class="sl">Cumulative P&L</div><div class="sv sm" id="ts-pnl">—</div></div>
+    <div class="sbox"><div class="sl">Cumulative R</div><div class="sv sm" id="ts-pnl">—</div></div>
+    <div class="sbox"><div class="sl">Cumulative PnL $</div><div class="sv sm" id="ts-pnl-amt">—</div></div>
   </div>
   <div style="overflow-x:auto">
     <table class="ttable">
@@ -939,7 +940,7 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
         </div>
         <div class="leg-table">
           <div class="leg-header">
-            <div>入場日期</div><div>入場價</div><div>SL</div><div>出場日期</div><div>出場價</div><div>倉%</div><div>Risk%</div><div style="color:var(--amber)">R</div><div></div>
+            <div>入場日期</div><div>入場價</div><div>SL</div><div>出場日期</div><div>出場價</div><div>倉%</div><div>Risk%</div><div style="color:var(--amber)">R</div><div style="color:var(--green)">PnL</div><div></div>
           </div>
           <div id="legsContainer"></div>
         </div>
@@ -949,6 +950,7 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
           <span>均出：<b id="sumAvgExit" style="color:var(--hi)">—</b></span>
           <span>總 Risk：<b id="sumTotalRisk" style="color:var(--hi)">—</b></span>
           <span>加權 R：<b id="sumAutoR" style="color:var(--amber)">—</b></span>
+          <span>總 PnL $：<b id="sumTotalPnl" style="color:var(--green)">—</b></span>
           <span style="font-size:9px;color:var(--lo)" id="rHint">（需各腳填 SL 與出場價）</span>
         </div>
       </div>
@@ -1629,11 +1631,12 @@ const AC={BOND:'bond',FX:'fx',GOLD:'gold',OIL:'oil',BTC:'btc',ETH:'btc'};
 function renderTrades(){
   const tbody=document.getElementById('tBody');
   document.getElementById('tcount').textContent=trades.length+' trades';
-  if(!trades.length){tbody.innerHTML='<tr><td colspan="13" class="t-empty">尚無記錄</td></tr>';updateStats();return;}
+  if(!trades.length){tbody.innerHTML='<tr><td colspan="14" class="t-empty">尚無記錄</td></tr>';updateStats();return;}
   tbody.innerHTML=trades.map((t,i)=>{
     const ac=AC[t.asset]||'';
     const dc=t.dir==='LONG'?'dir-l':'dir-s';
     const pd=t.pnl!=null?(t.pnl>=0?`<span class="pnl-p">+${t.pnl.toFixed(2)}R</span>`:`<span class="pnl-n">${t.pnl.toFixed(2)}R</span>`):'—';
+    const pnlAmt=t.totalPnl!=null?(t.totalPnl>=0?`<span class="pnl-p">+${t.totalPnl.toFixed(2)}</span>`:`<span class="pnl-n">${t.totalPnl.toFixed(2)}</span>`):'—';
     const cc=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
     const entryCount=t.charts?Object.keys(t.charts).filter(k=>k.startsWith('entry_')&&t.charts[k]).length:0;
     const exitCount=t.charts?Object.keys(t.charts).filter(k=>k.startsWith('exit_')&&t.charts[k]).length:0;
@@ -1647,6 +1650,7 @@ function renderTrades(){
       <td>${t.exit||'—'}</td>
       <td>${t.risk}%</td><td>${t.r?t.r+'R':'—'}</td>
       <td>${pd}</td>
+      <td style="font-family:var(--mono);font-size:11px">${pnlAmt}</td>
       <td style="color:${t.status==='OPEN'?'var(--amber)':t.status==='TP HIT'?'var(--green)':t.status==='SL HIT'?'var(--red)':'var(--lo)'}">${t.status}</td>
       <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.reason||'—'}</td>
       <td style="text-align:center"><span style="font-family:var(--mono);font-size:10px;color:${cc?'var(--cyan)':'var(--lo)'}">${entryCount?'📥'+entryCount:''}${exitCount?'📤'+exitCount:''}${!cc?'—':''}</span></td>
@@ -1669,6 +1673,14 @@ function updateStats(){
   const pe=document.getElementById('ts-pnl');
   if(sum){pe.textContent=(parseFloat(sum)>=0?'+':'')+sum+'R';pe.style.color=parseFloat(sum)>=0?'var(--green)':'var(--red)';}
   else pe.textContent='—';
+  // Cumulative $ PnL (only trades that have leg PnL recorded)
+  const withAmt=trades.filter(t=>t.totalPnl!=null);
+  const amtSum=withAmt.length?withAmt.reduce((s,t)=>s+t.totalPnl,0):null;
+  const pa=document.getElementById('ts-pnl-amt');
+  if(pa){
+    if(amtSum!=null){pa.textContent=(amtSum>=0?'+':'')+amtSum.toFixed(2);pa.style.color=amtSum>=0?'var(--green)':'var(--red)';}
+    else pa.textContent='—';
+  }
 }
 function updateRisk(){
   const m=new Date().getMonth();
@@ -1725,10 +1737,10 @@ function openEditModal(id){
   // Migrate old format legs {date,price,risk,weight} → new format
   _legs = _legs.map(l => {
     if(l.entryPrice !== undefined) return l; // already new format
-    return {entryDate:l.date||'', entryPrice:l.price||'', sl:'', exitDate:'', exitPrice:'', size:l.weight||'', risk:l.risk||''};
+    return {entryDate:l.date||'', entryPrice:l.price||'', sl:'', exitDate:'', exitPrice:'', size:l.weight||'', risk:l.risk||'', pnl:''};
   });
   if(!_legs.length && t.entry){
-    _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), sl:t.sl?String(t.sl):'', exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2)}];
+    _legs = [{entryDate:t.date||'', entryPrice:String(t.entry), sl:t.sl?String(t.sl):'', exitDate:'', exitPrice:t.exit?String(t.exit):'', size:'', risk:String(t.risk||2), pnl:''}];
   }
   renderLegs(); calcLegsSummary();
   // Update Notion button label: Update vs Push
@@ -1891,7 +1903,7 @@ function rmChart(e,tf,tradeId){
 let _legs = []; // working copy while modal open
 
 function addLeg(leg){
-  _legs.push(leg || {entryDate:'', entryPrice:'', sl:'', exitDate:'', exitPrice:'', size:'', risk:''});
+  _legs.push(leg || {entryDate:'', entryPrice:'', sl:'', exitDate:'', exitPrice:'', size:'', risk:'', pnl:''});
   calcLegsSummary();
   setTimeout(()=>{
     const rows = document.querySelectorAll('#legsContainer .leg-row');
@@ -1939,6 +1951,7 @@ function renderLegs(){
       <input class="leg-input" type="number" data-idx="${i}" data-field="size" placeholder="%" step="1" min="0" max="100" value="${leg.size||''}" oninput="updateLeg(${i},'size',this.value)">
       <input class="leg-input" type="number" data-idx="${i}" data-field="risk" placeholder="%" step="0.5" value="${leg.risk||''}" oninput="updateLeg(${i},'risk',this.value)">
       <div id="leg-r-${i}" style="font-size:10px;font-family:var(--mono);text-align:center">${legRHtml(legR(leg,dir))}</div>
+      <input class="leg-input${leg.pnl?' has-val':''}" type="number" data-idx="${i}" data-field="pnl" placeholder="PnL" step="0.01" value="${leg.pnl||''}" oninput="updateLeg(${i},'pnl',this.value)" title="實際損益金額">
       <button class="btn btn-danger btn-sm" style="padding:2px 6px;font-size:10px" onclick="removeLeg(${i})">✕</button>
     </div>`).join('');
 }
@@ -1981,7 +1994,9 @@ function _computeLegs(){
       return s+r*wt;
     },0);
   }
-  return{avgEntry,avgExit,totalRisk,weightedR};
+  const totalPnl = _legs.reduce((s,l)=>s+(parseFloat(l.pnl)||0),0);
+  const hasPnl = _legs.some(l=>parseFloat(l.pnl));
+  return{avgEntry,avgExit,totalRisk,weightedR,totalPnl,hasPnl};
 }
 
 // ── Update summary bar only (called on every keystroke — no renderLegs) ──
@@ -1994,13 +2009,22 @@ function calcSummaryOnly(){
     document.getElementById('m-risk').value=2;
     return;
   }
-  const{avgEntry,avgExit,totalRisk,weightedR}=res;
+  const{avgEntry,avgExit,totalRisk,weightedR,totalPnl,hasPnl}=res;
   document.getElementById('sumAvgEntry').textContent = avgEntry.toFixed(4);
   document.getElementById('sumAvgExit').textContent = avgExit ? avgExit.toFixed(4) : '（部分未出場）';
   document.getElementById('sumTotalRisk').textContent = totalRisk ? totalRisk.toFixed(1)+'%' : '—';
   document.getElementById('sumAutoR').textContent = weightedR!=null ? (weightedR>=0?'+':'')+weightedR.toFixed(2)+'R' : '—';
   const hint = document.getElementById('rHint');
   if(hint) hint.style.display = weightedR!=null ? 'none' : '';
+  // PnL
+  const pnlEl = document.getElementById('sumTotalPnl');
+  if(pnlEl){
+    if(res.hasPnl){
+      const p=res.totalPnl;
+      pnlEl.textContent = (p>=0?'+':'')+p.toFixed(2);
+      pnlEl.style.color = p>=0?'var(--green)':'var(--red)';
+    } else { pnlEl.textContent='—'; pnlEl.style.color='var(--green)'; }
+  }
   document.getElementById('m-entry').value = avgEntry.toFixed(4);
   document.getElementById('m-exit').value = avgExit ? avgExit.toFixed(4) : 0;
   document.getElementById('m-risk').value = totalRisk||2;
@@ -2037,7 +2061,14 @@ function saveTrade(){
     exitr: document.getElementById('m-exitr').value,
     legs: hasLegs ? JSON.parse(JSON.stringify(_legs)) : undefined,
   };
+  // pnl = R multiple (for win rate / avg R stats)
   d.pnl = d.status!=='OPEN' ? d.r : null;
+  // totalPnl = actual $ amount (sum of leg PnL inputs)
+  if(hasLegs && _legs.some(l=>parseFloat(l.pnl))){
+    d.totalPnl = parseFloat(_legs.reduce((s,l)=>s+(parseFloat(l.pnl)||0),0).toFixed(2));
+  } else {
+    d.totalPnl = undefined;
+  }
 
   if(currentTradeId){
     const t=trades.find(x=>x.id===currentTradeId);
@@ -2347,11 +2378,7 @@ function buildTradeProps(t,tDbId){
     'Risk %':{number:t.risk||0},
     'R Multiple':{number:t.r||0},
     'Status':{select:{name:t.status}},
-    'Entry Reason':{rich_text:[{text:{content:(()=>{
-      if(!t.legs||!t.legs.length)return t.reason||'';
-      const ld=t.legs.map((l,i)=>'Leg'+(i+1)+': 入'+(l.entryPrice||'?')+(l.sl?' SL'+l.sl:'')+(l.exitPrice?' 出'+l.exitPrice:' (未出)')+(l.size?' '+l.size+'%':'')+(l.risk?' R'+l.risk+'%':'')).join(' | ');
-      return '[分批'+t.legs.length+'腳 均入:'+t.entry+(t.exit?' 均出:'+t.exit:'')+' Risk:'+t.risk+'%] '+ld+'\n'+(t.reason||'');
-    })()}}]},
+    'Entry Reason':{rich_text:[{text:{content:(t.reason||'').slice(0,1990)}}]},
   };
   if(t.pnl!=null)props['PnL (R)']={number:t.pnl};
   if(t.entry)props['Entry Price']={number:t.entry};
@@ -2359,37 +2386,80 @@ function buildTradeProps(t,tDbId){
   return{parent:{database_id:tDbId},properties:props};
 }
 
-// ── Append chart image blocks to a Notion page ──
-async function appendChartBlocks(pageId,charts,token){
-  if(!charts||!Object.keys(charts).length)return;
-  const TF_ORDER=['1M','W','D','H4','H1','M15','prop'];
+// ── Build rich text array (handle long text Notion 2000-char limit) ──
+function richText(str){
+  if(!str)return[];
+  const chunks=[];
+  for(let i=0;i<str.length;i+=1990) chunks.push({text:{content:str.slice(i,i+1990)}});
+  return chunks;
+}
+
+// ── Append page body: reasons + leg table + charts ──
+async function appendChartBlocks(pageId,charts,token,trade){
   const blocks=[];
-  const TF_LABEL={'1M':'Monthly','W':'Weekly','D':'Daily','H4':'H4','H1':'H1','M15':'M15','prop':'Prop Firm MT5'};
-  async function pushPhaseBlocks(phase, label){
-    const hasAny=TF_ORDER.some(tf=>charts[phase+'_'+tf]);
-    if(!hasAny)return;
-    blocks.push({object:'block',type:'heading_3',heading_3:{rich_text:[{text:{content:label}}]}});
-    for(const tf of TF_ORDER){
-      const key=phase+'_'+tf;
-      const src=charts[key];
-      if(!src)continue;
-      if(src.startsWith('http')){
-        blocks.push({object:'block',type:'image',image:{type:'external',external:{url:src}}});
-      } else {
-        const imgRef=await uploadImageForNotion(src,tf);
-        if(imgRef) blocks.push({object:'block',type:'image',image:imgRef});
-        else blocks.push({object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:'📸'},rich_text:[{text:{content:tf+' — 本地圖片（需設定 imgbb Key 才能上傳）'}}],color:'gray_background'}});
-      }
-      blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:[{text:{content:TF_LABEL[tf]||tf},annotations:{bold:true,color:'blue'}}]}});
+
+  // ── Entry Reason ──
+  if(trade&&trade.reason){
+    blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📥 Entry Reason'}}]}});
+    // Leg table if exists
+    if(trade.legs&&trade.legs.length){
+      const legLines=trade.legs.map((l,i)=>{
+        const parts=['Leg'+(i+1)+':'];
+        if(l.entryDate) parts.push(l.entryDate);
+        if(l.entryPrice) parts.push('入 '+l.entryPrice);
+        if(l.sl) parts.push('SL '+l.sl);
+        if(l.exitDate) parts.push('→ '+l.exitDate);
+        if(l.exitPrice) parts.push('出 '+l.exitPrice);
+        if(l.size) parts.push('倉'+l.size+'%');
+        if(l.risk) parts.push('Risk '+l.risk+'%');
+        if(l.pnl) parts.push('PnL '+(parseFloat(l.pnl)>=0?'+':'')+l.pnl);
+        return parts.join('  ');
+      });
+      blocks.push({object:'block',type:'code',code:{rich_text:[{text:{content:legLines.join('\n')}}],language:'plain text'}});
+      blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:[
+        {text:{content:'均入: '+trade.entry+'  均出: '+(trade.exit||'—')+'  總Risk: '+trade.risk+'%  R: '+(trade.r||'—')+(trade.totalPnl!=null?'  總PnL: '+(trade.totalPnl>=0?'+':'')+trade.totalPnl.toFixed(2):'')}},
+      ]}});
     }
+    blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:richText(trade.reason)}});
   }
 
-  blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📊 Charts'}}]}});
-  await pushPhaseBlocks('entry','📥 Entry');
-  await pushPhaseBlocks('exit','📤 Exit');
+  // ── Exit Reason ──
+  if(trade&&trade.exitr){
+    blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:'📤 Exit Reason'}}]}});
+    blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:richText(trade.exitr)}});
+  }
+
+  // ── Charts ──
+  if(charts&&Object.keys(charts).length){
+    const TF_ORDER=['1M','W','D','H4','H1','M15','prop'];
+    const TF_LABEL={'1M':'Monthly','W':'Weekly','D':'Daily','H4':'H4','H1':'H1','M15':'M15','prop':'Prop Firm MT5'};
+    async function pushPhaseBlocks(phase,label){
+      const hasAny=TF_ORDER.some(tf=>charts[phase+'_'+tf]);
+      if(!hasAny)return;
+      blocks.push({object:'block',type:'heading_2',heading_2:{rich_text:[{text:{content:label}}]}});
+      for(const tf of TF_ORDER){
+        const key=phase+'_'+tf;
+        const src=charts[key];
+        if(!src)continue;
+        blocks.push({object:'block',type:'paragraph',paragraph:{rich_text:[{text:{content:TF_LABEL[tf]||tf},annotations:{bold:true,color:'blue'}}]}});
+        if(src.startsWith('http')){
+          blocks.push({object:'block',type:'image',image:{type:'external',external:{url:src}}});
+        } else {
+          const imgRef=await uploadImageForNotion(src,tf);
+          if(imgRef) blocks.push({object:'block',type:'image',image:imgRef});
+          else blocks.push({object:'block',type:'callout',callout:{icon:{type:'emoji',emoji:'📸'},rich_text:[{text:{content:tf+' — 本地圖片（需設定 imgbb Key）'}}],color:'gray_background'}});
+        }
+      }
+    }
+    await pushPhaseBlocks('entry','📥 Entry Charts');
+    await pushPhaseBlocks('exit','📤 Exit Charts');
+  }
 
   if(blocks.length){
-    await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks},token);
+    // Notion allows max 100 blocks per request — chunk if needed
+    for(let i=0;i<blocks.length;i+=95){
+      await notionFetch('PATCH','/blocks/'+pageId+'/children',{children:blocks.slice(i,i+95)},token);
+    }
   }
 }
 
@@ -2421,18 +2491,15 @@ async function upsertTradeNotion(t, token, tDbId){
     }
     // 2. Clear old chart blocks and re-append
     const chartCount=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
-    if(chartCount>0){
-      await clearPageBlocks(t.notionPageId,token);
-      await appendChartBlocks(t.notionPageId,t.charts,token);
-    }
+    await clearPageBlocks(t.notionPageId,token);
+    await appendChartBlocks(t.notionPageId,t.charts,token,t);
     return{ok:true,pageId:t.notionPageId,created:false,chartCount};
   } else {
     // Create new page
     const{ok,data}=await notionFetch('POST','/pages',buildTradeProps(t,tDbId),token);
     if(!ok)return{ok:false,msg:data.message||'建立失敗'};
     t.notionPageId=data.id;
-    const chartCount=t.charts?Object.keys(t.charts).filter(k=>t.charts[k]).length:0;
-    if(chartCount>0) await appendChartBlocks(data.id,t.charts,token);
+    await appendChartBlocks(data.id,t.charts,token,t);
     return{ok:true,pageId:data.id,created:true,chartCount};
   }
 }
