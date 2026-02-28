@@ -3618,12 +3618,18 @@ async function callGrok(messages,clearOutput=false,useSearch=false){
   }
   out.scrollTop=out.scrollHeight;
 
-  // Convert chat history to Gemini format (single prompt with turns)
-  // For macro we always send as a single full prompt for strictness
-  const fullPrompt=messages.map(m=>(m.role==='user'?'USER: ':'ASSISTANT: ')+m.content).join('\n\n');
+  // Build contents array in proper Gemini multi-turn format
+  const contents = messages.map(m=>({
+    role: m.role==='assistant'?'model':'user',
+    parts:[{text: m.content||''}]
+  })).filter(m=>m.parts[0].text);
+
+  if(!contents.length){
+    showMacroError('提示詞為空，無法送出');return;
+  }
 
   const bodyObj={
-    contents:[{parts:[{text:fullPrompt}]}],
+    contents,
     generationConfig:{
       temperature:useSearch?0.2:0.15,
       maxOutputTokens:8192,
@@ -3637,15 +3643,15 @@ async function callGrok(messages,clearOutput=false,useSearch=false){
       {category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_NONE'},
     ]
   };
-  // Enable Google Search grounding for auto scan
   if(useSearch) bodyObj.tools=[{google_search:{}}];
+  const timeout=useSearch?60000:30000;
   const body=JSON.stringify(bodyObj);
 
   const BASE=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const ENDPOINTS=[
-    ()=>fetch(BASE,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(30000)}),
-    ()=>fetch('https://corsproxy.io/?'+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json','x-requested-with':'XMLHttpRequest'},body,signal:AbortSignal.timeout(30000)}),
-    ()=>fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(30000)}),
+    ()=>fetch(BASE,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(timeout)}),
+    ()=>fetch('https://corsproxy.io/?'+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json','x-requested-with':'XMLHttpRequest'},body,signal:AbortSignal.timeout(timeout)}),
+    ()=>fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(BASE),{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(timeout)}),
   ];
 
   let data=null,lastErr='';
