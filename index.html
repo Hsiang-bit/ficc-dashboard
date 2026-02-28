@@ -669,6 +669,12 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
 主要擔心的是通脹反彈的風險..."></textarea>
       </div>
 
+      <!-- Auto Scan row (Gemini mode only) -->
+      <div id="autoScanRow" style="margin-bottom:10px;padding:10px;background:linear-gradient(135deg,rgba(37,99,235,.06),rgba(124,58,237,.06));border:1px solid rgba(37,99,235,.2);border-radius:var(--r)">
+        <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--blue);text-transform:uppercase;margin-bottom:6px">🌐 Gemini Auto Scan（Google Search 即時搜尋）</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--lo);margin-bottom:8px;line-height:1.6">Gemini 自動搜尋金融新聞 + 即時市場數據，輸出 Macro Regime 判斷與 Risk-On/Off 0~10 評分</div>
+        <button class="btn btn-macro" id="btnAutoScan" onclick="macroAutoScan()" style="background:linear-gradient(135deg,rgba(37,99,235,.15),rgba(124,58,237,.15));border-color:rgba(37,99,235,.4);color:var(--blue)">🌐 一鍵 Auto Scan</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-macro" id="btnFull" onclick="macroAnalyze('full')">🧠 完整 Regime 分析</button>
         <button class="btn btn-macro" id="btnSignal" onclick="macroAnalyze('signal')">📡 交易信號建議</button>
@@ -704,6 +710,18 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
         </div>
 
         <!-- Regime Summary Bar -->
+        <div id="riskGaugeWrap" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-family:var(--cond);font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase">Risk-On/Off Meter</div>
+            <div id="riskScore" style="font-family:var(--mono);font-size:13px;font-weight:700">—</div>
+          </div>
+          <div style="height:10px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--border)">
+            <div id="riskBar" style="height:100%;width:50%;border-radius:5px;transition:width .5s,background .5s;background:var(--lo)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px;font-family:var(--mono);font-size:8px;color:var(--lo)">
+            <span>0 Risk-OFF</span><span>5 Neutral</span><span>10 Risk-ON</span>
+          </div>
+        </div>
         <div id="macroRegimeBar" style="display:none;padding:10px 14px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:12px;font-family:var(--mono);font-size:11px;flex-shrink:0">
         </div>
 
@@ -891,6 +909,46 @@ Bond 應該 Long，Gold 短線看漲因為避險需求，BTC 偏弱。
     </div>
     <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--lo)" id="gistLastSync"></div>
   </div>
+  <div class="card mb16" style="max-width:680px" id="supabaseCard">
+    <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🗄 Supabase 雲端同步</div>
+    <div style="padding:8px 12px;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.9;margin-bottom:12px">
+      交易記錄、日誌、設定、Checklist、Gantt 存入 <b>Supabase</b> 雲端資料庫，換電腦立即恢復。<br>
+      <span style="color:var(--lo)">圖表截圖不上傳，繼續本地 / Notion 儲存。</span><br>
+      <b style="color:var(--green)">設定步驟：</b>
+      <span style="color:var(--lo)">
+        ① <a href="https://supabase.com" target="_blank" style="color:var(--blue)">supabase.com</a> 免費建立專案 →
+        ② SQL Editor 執行下方建表語法 →
+        ③ 填入 URL 與 anon key
+      </span><br>
+      <details style="margin-top:4px">
+        <summary style="cursor:pointer;color:var(--blue);font-size:9px">▶ 展開建表 SQL</summary>
+        <code style="display:block;background:var(--bg);padding:8px;border-radius:3px;margin-top:6px;font-size:9px;white-space:pre;border:1px solid var(--border)">create table ficc_sync (
+  key text primary key,
+  value jsonb,
+  updated_at timestamptz default now()
+);
+-- Allow public read/write (anon key only)
+alter table ficc_sync enable row level security;
+create policy "allow all" on ficc_sync for all using (true) with check (true);</code>
+      </details>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Supabase URL</div>
+      <input type="text" id="supabaseUrl" placeholder="https://xxxx.supabase.co" oninput="saveSettings()" style="flex:1;font-size:10px">
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">Anon Key</div>
+      <input type="password" id="supabaseKey" placeholder="eyJhbGci..." oninput="saveSettings()" style="flex:1;font-size:10px">
+      <button class="btn btn-g btn-sm" onclick="toggleKeyVis('supabaseKey')">👁</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+      <button class="btn btn-a btn-sm" onclick="sbPush()">☁️ 上傳到雲端</button>
+      <button class="btn btn-g btn-sm" onclick="sbPull()">⬇️ 從雲端還原</button>
+      <button class="btn btn-g btn-sm" id="btnSbAutoSync" onclick="sbToggleAutoSync()">🔄 自動同步：關</button>
+      <span id="sbStatus" style="font-family:var(--mono);font-size:10px;color:var(--lo)"></span>
+    </div>
+    <div id="sbLastSync" style="margin-top:6px;font-family:var(--mono);font-size:9px;color:var(--lo)"></div>
+  </div>
   <div class="card mb16" style="max-width:680px">
     <div style="font-family:var(--cond);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--lo);text-transform:uppercase;margin-bottom:12px">🖼 圖表上傳（imgbb）</div>
     <div style="padding:8px 12px;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.12);border-radius:var(--r);font-family:var(--mono);font-size:10px;color:var(--mid);line-height:1.9;margin-bottom:10px">
@@ -1033,12 +1091,22 @@ function load(){
     if(el)el.textContent='上次同步：'+new Date(settings.gistLastSync).toLocaleString('zh-TW');
   }
   if(settings.fomcDate){document.getElementById('fomcDate').value=settings.fomcDate;document.getElementById('fomcDisp').textContent=settings.fomcDate;}
+  const su=document.getElementById('supabaseUrl');if(su&&settings.supabaseUrl)su.value=settings.supabaseUrl;
+  const sk=document.getElementById('supabaseKey');if(sk&&settings.supabaseKey)sk.value=settings.supabaseKey;
+  sbUpdateLastSync();
+  if(settings.sbAutoSync){
+    const btn=document.getElementById('btnSbAutoSync');
+    if(btn)btn.textContent='🔄 自動同步：開';
+    sbStartAutoSync();
+  }
 }
 function saveAll(){
   localStorage.setItem('ficc_trades',JSON.stringify(trades));
   localStorage.setItem('ficc_journals',JSON.stringify(journals));
   localStorage.setItem('ficc_settings',JSON.stringify(settings));
   localStorage.setItem('ficc_gantt',JSON.stringify(ganttData));
+  // Debounced cloud sync (3s after last save)
+  if(settings.sbAutoSync) sbDebouncedPush();
 }
 function saveSettings(){
   settings.notionToken=document.getElementById('notionToken').value;
@@ -1050,6 +1118,8 @@ function saveSettings(){
   if(gh)settings.ghToken=gh.value;
   const ib=document.getElementById('imgbbKey');
   if(ib)settings.imgbbKey=ib.value;
+  const su=document.getElementById('supabaseUrl');if(su)settings.supabaseUrl=su.value;
+  const sk=document.getElementById('supabaseKey');if(sk)settings.supabaseKey=sk.value;
   saveAll();
 }
 function toggleKeyVis(id){
@@ -1065,6 +1135,179 @@ function importData(){
   inp.onchange=e=>{const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.trades)trades=d.trades;if(d.journals)journals=d.journals;if(d.settings)settings=d.settings;if(d.ganttData)ganttData=d.ganttData;saveAll();renderTrades();loadJournal(currentJDate);toast('✓ 匯入成功');}catch{toast('⚠ 格式錯誤','e');}};r.readAsText(e.target.files[0]);};inp.click();
 }
 function clearData(){if(!confirm('確認清除所有資料？'))return;trades=[];journals={};settings={};ganttData={};['ficc_trades','ficc_journals','ficc_settings','ficc_gantt'].forEach(k=>localStorage.removeItem(k));renderTrades();loadJournal(currentJDate);toast('已清除');}
+
+
+// ════════════════════════════════════
+// SUPABASE CLOUD SYNC
+// ════════════════════════════════════
+let _sbPushTimer=null;
+
+function sbUrl(){return (settings.supabaseUrl||'').replace(/\/$/,'');}
+function sbKey(){return settings.supabaseKey||'';}
+function sbReady(){return !!(sbUrl()&&sbKey());}
+
+// Strip chart base64 from trades (images stay local / Notion)
+function sbStripCharts(tradeArr){
+  return tradeArr.map(t=>{
+    if(!t.charts) return t;
+    const charts={};
+    Object.keys(t.charts).forEach(k=>{
+      const v=t.charts[k];
+      // Keep only http URLs; drop base64 data
+      if(v&&v.startsWith('http')) charts[k]=v;
+    });
+    return {...t, charts};
+  });
+}
+
+async function sbFetch(method, key, value){
+  const base=sbUrl()+'/rest/v1/ficc_sync';
+  const headers={
+    'apikey':sbKey(),
+    'Authorization':'Bearer '+sbKey(),
+    'Content-Type':'application/json',
+    'Prefer': method==='POST'?'resolution=merge-duplicates':'',
+  };
+  let url=base, body=null;
+  if(method==='GET'){
+    url=base+'?key=eq.'+encodeURIComponent(key)+'&select=value';
+  } else {
+    body=JSON.stringify({key, value, updated_at: new Date().toISOString()});
+  }
+  try{
+    const r=await fetch(url,{method, headers, body});
+    const text=await r.text();
+    const data=text?JSON.parse(text):null;
+    return {ok:r.ok, data, status:r.status};
+  }catch(e){
+    return{ok:false,data:null,status:0,err:e.message};
+  }
+}
+
+// ── Build full snapshot (no base64 charts) ──
+function sbBuildSnapshot(){
+  return {
+    trades:    sbStripCharts(trades),
+    journals:  journals,
+    settings:  settings,
+    gantt:     ganttData,
+    checklist: JSON.parse(localStorage.getItem('ficc_checklist')||'null'),
+    macro_md:  localStorage.getItem('ficc_macro_md')||'',
+    macro_inputs: JSON.parse(localStorage.getItem('ficc_macro_inputs')||'null'),
+    version:   3,
+    pushed_at: new Date().toISOString(),
+  };
+}
+
+// ── Push all data to Supabase ──
+async function sbPush(silent=false){
+  if(!sbReady()){
+    if(!silent) toast('⚠ 請先填入 Supabase URL 與 Key','e');
+    return false;
+  }
+  if(!silent) sbSetStatus('☁️ 上傳中...','var(--lo)');
+  const snapshot=sbBuildSnapshot();
+  const {ok,status,err}=await sbFetch('POST','ficc_v3',snapshot);
+  if(!ok){
+    const msg=err||'HTTP '+status;
+    if(!silent) toast('⚠ Supabase 上傳失敗：'+msg,'e');
+    sbSetStatus('✗ 上傳失敗','var(--red)');
+    return false;
+  }
+  settings.sbLastPush=new Date().toISOString();
+  localStorage.setItem('ficc_settings',JSON.stringify(settings));
+  sbUpdateLastSync();
+  if(!silent) toast('✓ 已同步到雲端');
+  sbSetStatus('✓ 已同步','var(--green)');
+  setTimeout(()=>sbSetStatus('',''),3000);
+  return true;
+}
+
+// ── Pull from Supabase & restore ──
+async function sbPull(){
+  if(!sbReady()){toast('⚠ 請先填入 Supabase URL 與 Key','e');return;}
+  sbSetStatus('⬇️ 下載中...','var(--lo)');
+  const {ok,data,status}=await sbFetch('GET','ficc_v3');
+  if(!ok||!data||!data.length){
+    toast('⚠ 找不到雲端資料 ('+status+')','e');
+    sbSetStatus('✗ 無雲端資料','var(--red)');
+    return;
+  }
+  const snap=data[0].value;
+  if(!snap){toast('⚠ 雲端資料為空','e');return;}
+
+  const pushedAt=snap.pushed_at?new Date(snap.pushed_at).toLocaleString('zh-TW'):'未知';
+  if(!confirm('從雲端還原？\n上傳時間：'+pushedAt+'\n\n⚠ 本地資料會被覆蓋（圖表 base64 保留）'))return;
+
+  // Restore — preserve local base64 charts, merge with cloud URL charts
+  if(snap.trades){
+    const localChartMap={};
+    trades.forEach(t=>{if(t.id&&t.charts)localChartMap[t.id]=t.charts;});
+    trades=snap.trades.map(t=>{
+      const local=localChartMap[t.id]||{};
+      const merged={...local,...(t.charts||{})};
+      return {...t, charts: Object.keys(merged).length?merged:undefined};
+    });
+    localStorage.setItem('ficc_trades',JSON.stringify(trades));
+  }
+  if(snap.journals){journals=snap.journals;localStorage.setItem('ficc_journals',JSON.stringify(journals));}
+  if(snap.settings){
+    // Preserve local keys (supabase URL/key itself)
+    const keep={supabaseUrl:settings.supabaseUrl,supabaseKey:settings.supabaseKey,sbAutoSync:settings.sbAutoSync};
+    settings={...snap.settings,...keep};
+    localStorage.setItem('ficc_settings',JSON.stringify(settings));
+  }
+  if(snap.gantt){ganttData=snap.gantt;localStorage.setItem('ficc_gantt',JSON.stringify(ganttData));}
+  if(snap.checklist)localStorage.setItem('ficc_checklist',JSON.stringify(snap.checklist));
+  if(snap.macro_md)localStorage.setItem('ficc_macro_md',snap.macro_md);
+  if(snap.macro_inputs)localStorage.setItem('ficc_macro_inputs',JSON.stringify(snap.macro_inputs));
+
+  // Reload UI
+  load(); renderTrades(); loadJournal(currentJDate);
+  toast('✓ 已從雲端還原（'+snap.pushed_at?.slice(0,10)+'）');
+  sbSetStatus('✓ 已還原','var(--green)');
+  setTimeout(()=>sbSetStatus('',''),3000);
+}
+
+// ── Debounced push (called from saveAll) ──
+function sbDebouncedPush(){
+  clearTimeout(_sbPushTimer);
+  _sbPushTimer=setTimeout(()=>sbPush(true),3000);
+}
+
+// ── Auto sync toggle ──
+let _sbSyncInterval=null;
+function sbToggleAutoSync(){
+  settings.sbAutoSync=!settings.sbAutoSync;
+  localStorage.setItem('ficc_settings',JSON.stringify(settings));
+  const btn=document.getElementById('btnSbAutoSync');
+  if(settings.sbAutoSync){
+    if(btn)btn.textContent='🔄 自動同步：開';
+    sbStartAutoSync();
+    toast('✓ 自動同步已開啟（每次儲存後 3 秒同步）');
+  } else {
+    if(btn)btn.textContent='🔄 自動同步：關';
+    if(_sbSyncInterval){clearInterval(_sbSyncInterval);_sbSyncInterval=null;}
+    toast('自動同步已關閉');
+  }
+}
+function sbStartAutoSync(){
+  // Heartbeat: re-push every 5 minutes as backup
+  if(_sbSyncInterval) clearInterval(_sbSyncInterval);
+  _sbSyncInterval=setInterval(()=>{if(settings.sbAutoSync)sbPush(true);},5*60*1000);
+}
+
+function sbSetStatus(msg,color){
+  const el=document.getElementById('sbStatus');
+  if(el){el.textContent=msg;el.style.color=color||'var(--lo)';}
+}
+function sbUpdateLastSync(){
+  const el=document.getElementById('sbLastSync');
+  if(!el)return;
+  if(settings.sbLastPush){
+    el.textContent='上次同步：'+new Date(settings.sbLastPush).toLocaleString('zh-TW');
+  }
+}
 
 // ════════════════════════════════════
 // CLOCK & SESSION
@@ -2998,6 +3241,9 @@ function onMacroProviderChange(){
   // Toggle hint bar
   document.getElementById('pplxHint').style.display=isPplx?'block':'none';
   document.getElementById('macroAiLabel').textContent=isPplx?'🔍 Perplexity Macro Analysis':'🤖 Gemini Macro Analysis';
+  // Auto Scan row: only in Gemini mode
+  const asr=document.getElementById('autoScanRow');
+  if(asr) asr.style.display=isPplx?'none':'';
 }
 
 function buildPerplexityPrompt(type){
@@ -3238,6 +3484,72 @@ function macroShowCustom(){
   if(q.style.display==='block')q.focus();
 }
 
+
+// ── Gemini Auto Scan with Google Search grounding ──
+async function macroAutoScan(){
+  const key=settings.geminiKey||document.getElementById('geminiKey')?.value?.trim()||'';
+  if(!key){
+    showMacroError('請先在 Settings 填入 Gemini API Key');
+    return;
+  }
+  const macroMd=localStorage.getItem('ficc_macro_md')||'';
+  const today=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+  const prompt=`你是一位 FICC 宏觀分析師。今天是 ${today}。
+
+請使用 Google Search 工具，搜尋以下資訊並整合分析：
+
+【搜尋任務】
+1. 搜尋今日最新市場數據：US 10Y/2Y 殖利率、DXY、Gold現貨價、Oil(WTI)、SPX指數、BTC價格、VIX
+2. 搜尋最新 Fed 官員發言、FOMC 決議或聲明
+3. 搜尋最新 CPI、PCE、NFP 等重要經濟數據
+4. 搜尋近期主要宏觀事件（地緣政治、貿易政策、關稅等）
+5. 搜尋主要金融媒體（Bloomberg、Reuters、WSJ、FT）對當前市場環境的觀點
+
+【輸出格式（必須嚴格遵守）】
+
+## 📊 即時市場數據快照
+（列出你搜尋到的各項數據，必須標明來源與日期）
+
+## 📰 重要新聞摘要
+（3~5條關鍵新聞，每條一行，格式：日期 | 標題 | 重要性）
+
+## 🧭 Macro Regime 判斷
+**REGIME:** [具體分類名稱]
+**主要驅動：** [2~3個最關鍵的驅動因子]
+**FICC 信號：** BOND [方向] | FX [方向] | GOLD [方向] | OIL [方向] | BTC [方向]
+
+## 📈 各大類資產看法
+（每個資產 2~3 行，包含方向、原因、關鍵價位）
+- **BOND（債券）：**
+- **FX / DXY：**
+- **GOLD（黃金）：**
+- **OIL（原油）：**
+- **BTC：**
+- **股市（SPX）：**
+
+## ⚖️ Risk-On/Off 評分
+**RISK_SCORE: [0~10]**
+（0 = 極端 Risk-Off，5 = 中性，10 = 極端 Risk-On）
+
+評分依據：
+- 評分理由（3~5點）
+
+## ⚠️ 主要下行風險
+（列出3個最需注意的尾部風險）
+
+${macroMd ? '---\n【你的 Macro Framework 參考】\n' + macroMd : ''}
+
+【輸出規則】
+- 必須用繁體中文回答
+- 每個數據必須標明搜尋來源與日期
+- RISK_SCORE 必須是 0~10 之間的整數或一位小數
+- 禁止使用「可能」「或許」「預計」等模糊詞——必須給出明確判斷和信心水平`;
+
+  macroChatHistory=[{role:'user',content:prompt}];
+  await callGrok(macroChatHistory,true,true); // useSearch=true
+}
+
 async function macroAnalyze(type){
   if(type==='custom'){
     const q=document.getElementById('macroCustomQ');
@@ -3290,7 +3602,7 @@ async function macroChat(){
   else await callGrok(macroChatHistory,false);
 }
 
-async function callGrok(messages,clearOutput=false){
+async function callGrok(messages,clearOutput=false,useSearch=false){
   const key=settings.geminiKey||document.getElementById('geminiKey')?.value?.trim()||'';
   if(!key){
     showMacroError('請先在 Settings 填入 Gemini API Key<br><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">免費取得 →</a>');
@@ -3300,7 +3612,7 @@ async function callGrok(messages,clearOutput=false){
   const out=document.getElementById('macroOutput');
 
   if(clearOutput){
-    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">⟳ Gemini 分析中（低溫嚴謹模式）...</div>';
+    out.innerHTML='<div style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:8px 0">'+(useSearch?'🌐 Gemini 搜尋中（Google Search + AI 分析）...':'⟳ Gemini 分析中（低溫嚴謹模式）...')+'</div>';
   } else {
     out.innerHTML+='<div id="grok-typing" style="color:var(--lo);font-family:var(--mono);font-size:10px;padding:4px 0">⟳ 思考中...</div>';
   }
@@ -3310,11 +3622,11 @@ async function callGrok(messages,clearOutput=false){
   // For macro we always send as a single full prompt for strictness
   const fullPrompt=messages.map(m=>(m.role==='user'?'USER: ':'ASSISTANT: ')+m.content).join('\n\n');
 
-  const body=JSON.stringify({
+  const bodyObj={
     contents:[{parts:[{text:fullPrompt}]}],
     generationConfig:{
-      temperature:0.15,
-      maxOutputTokens:8192,   // increased: macro analysis needs more tokens
+      temperature:useSearch?0.2:0.15,
+      maxOutputTokens:8192,
       topP:0.8,
       topK:20,
     },
@@ -3324,7 +3636,10 @@ async function callGrok(messages,clearOutput=false){
       {category:'HARM_CATEGORY_DANGEROUS_CONTENT',threshold:'BLOCK_NONE'},
       {category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_NONE'},
     ]
-  });
+  };
+  // Enable Google Search grounding for auto scan
+  if(useSearch) bodyObj.tools=[{google_search:{}}];
+  const body=JSON.stringify(bodyObj);
 
   const BASE=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const ENDPOINTS=[
@@ -3411,7 +3726,29 @@ function renderMacroOutput(text){
   return`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">${html}</div>`;
 }
 
+function updateRiskGauge(text){
+  const m=text.match(/RISK_SCORE:\s*([0-9]+(?:\.[0-9]+)?)/);
+  if(!m)return;
+  const score=parseFloat(m[1]);
+  const clamped=Math.max(0,Math.min(10,score));
+  const pct=(clamped/10)*100;
+  // Color: 0=red, 5=amber, 10=green
+  const r=clamped<=5?255:Math.round(255-(clamped-5)/5*255);
+  const g=clamped>=5?200:Math.round(clamped/5*200);
+  const color=`rgb(${r},${g},50)`;
+  const wrap=document.getElementById('riskGaugeWrap');
+  const bar=document.getElementById('riskBar');
+  const lbl=document.getElementById('riskScore');
+  if(!wrap)return;
+  wrap.style.display='block';
+  bar.style.width=pct+'%';
+  bar.style.background=color;
+  lbl.textContent=clamped.toFixed(1)+' / 10';
+  lbl.style.color=color;
+}
+
 function updateRegimeBar(text){
+  updateRiskGauge(text);
   const bar=document.getElementById('macroRegimeBar');
   const regimeMatch=text.match(/REGIME:\s*([^\*\n]+)/);
   const signalMatch=text.match(/FICC \u4fe1\u865f\uff1a([^\*\n]+)/);
