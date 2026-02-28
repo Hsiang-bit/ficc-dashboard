@@ -2895,16 +2895,22 @@ function removeTyping(){const t=document.getElementById('typingMsg');if(t)t.remo
 function formatAIText(text){
   return text.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/#{3}(.*)/g,'<h4>$1</h4>').replace(/#{2}(.*)/g,'<h4>$1</h4>').replace(/#{1}(.*)/g,'<h4>$1</h4>').replace(/\n- (.*)/g,'\n<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
 }
-async function callGemini(userPrompt){
+// Coach conversation history for multi-turn & continuation
+let coachHistory=[];
+
+async function callGemini(userPrompt, isContinue=false){
   const key=document.getElementById('geminiKey').value.trim()||settings.geminiKey||'';
   if(!key){
     appendMsg('⚠ 請先在 Settings 頁填入 Gemini API Key<br><br>免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com/app/apikey</a>','ai');
     return;
   }
   appendTyping();
-  const{journalText,tradeText}=buildContext();
   const model=document.getElementById('geminiModel').value;
-  const systemCtx=`你是一個專業的 FICC 大類資產交易教練，專精於 Bond/FX/Gold/Oil/BTC 的 SMT（Smart Money Theory）交易方法。你有以下資料：
+
+  if(!isContinue){
+    // Build new turn — system context + user question
+    const{journalText,tradeText}=buildContext();
+    const systemCtx=`你是一個專業的 FICC 大類資產交易教練，專精於 Bond/FX/Gold/Oil/BTC 的 SMT（Smart Money Theory）交易方法。你有以下資料：
 
 === 最近14天交易日誌 ===
 ${journalText||'（無日誌記錄）'}
@@ -2919,23 +2925,35 @@ ${tradeText||'（無交易記錄）'}
 - FOMC週：Bond/FX/Gold禁止新倉，Oil/BTC可持倉不新開
 - 入場時間：Bond 7/8/9am，FX 3/4/5am LN + 8/9/10am NY（週三起），Gold/Oil 類FX
 - SMT確認流程：月線→週線→日線→H4結構`;
-  const fullPrompt=systemCtx+'\n\n用戶問題：'+userPrompt;
-  const body=JSON.stringify({contents:[{parts:[{text:fullPrompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}});
+    coachHistory.push({role:'user', content: systemCtx+'\n\n用戶問題：'+userPrompt});
+  } else {
+    // Continue: ask model to keep going from where it stopped
+    coachHistory.push({role:'user', content:'請繼續上面的回覆，從截斷處接著輸出，不要重複已說過的內容。'});
+  }
 
-  // Try direct → corsproxy → allorigins in sequence
+  // Build proper multi-turn contents
+  const contents=coachHistory.map(m=>({
+    role: m.role==='assistant'?'model':'user',
+    parts:[{text: m.content||''}]
+  }));
+
+  const body=JSON.stringify({
+    contents,
+    generationConfig:{temperature:0.7, maxOutputTokens:8192}
+  });
+
+  const BASE=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const ENDPOINTS=[
-    ()=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body}),
-    ()=>fetch(`https://corsproxy.io/?url=${encodeURIComponent(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`)}`,{method:'POST',headers:{'Content-Type':'application/json','x-requested-with':'XMLHttpRequest'},body}),
-    ()=>fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`)}`,{method:'POST',headers:{'Content-Type':'application/json'},body}),
+    ()=>fetch(BASE,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(45000)}),
+    ()=>fetch(`https://corsproxy.io/?url=${encodeURIComponent(BASE)}`,{method:'POST',headers:{'Content-Type':'application/json','x-requested-with':'XMLHttpRequest'},body,signal:AbortSignal.timeout(45000)}),
+    ()=>fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(BASE)}`,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:AbortSignal.timeout(45000)}),
   ];
 
   let data=null,lastErr='';
   for(const makeReq of ENDPOINTS){
     try{
       const res=await makeReq();
-      if(res.ok||res.status===400){
-        data=await res.json();break;
-      }
+      if(res.ok||res.status===400){data=await res.json();break;}
     }catch(e){lastErr=e.message;continue;}
   }
 
@@ -2959,8 +2977,34 @@ ${tradeText||'（無交易記錄）'}
     }
     return;
   }
-  const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'（無回應）';
-  appendMsg(reply,'ai');
+
+  const candidate=data.candidates?.[0];
+  const reply=candidate?.content?.parts?.[0]?.text||'（無回應）';
+  const finishReason=candidate?.finishReason||'';
+
+  // Save assistant reply to history for multi-turn
+  coachHistory.push({role:'assistant', content:reply});
+
+  if(finishReason==='MAX_TOKENS'){
+    appendMsg(reply+'<br><br><span style="color:var(--lo);font-size:10px">⚠ 回覆因長度被截斷</span>','ai');
+    // Add continue button
+    const msgs=document.getElementById('coachMessages');
+    const btn=document.createElement('div');
+    btn.className='msg ai';
+    btn.innerHTML=`<div class="msg-avatar">G</div><div class="msg-bubble" style="padding:6px 10px"><button class="btn btn-g btn-sm" onclick="coachContinue()" style="font-size:10px">▶ 繼續輸出</button></div>`;
+    msgs.appendChild(btn);
+    msgs.scrollTop=msgs.scrollHeight;
+  } else {
+    appendMsg(reply,'ai');
+  }
+}
+
+async function coachContinue(){
+  // Remove the continue button
+  const msgs=document.getElementById('coachMessages');
+  const lastChild=msgs.lastElementChild;
+  if(lastChild&&lastChild.querySelector('button')) lastChild.remove();
+  await callGemini(null, true);
 }
 
 // ════════════════════════════════════
